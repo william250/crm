@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - CRM System</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="assets/css/login.css" rel="stylesheet">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <!-- Logo and Title -->
+            <div class="text-center mb-4">
+                <div class="logo-container">
+                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                </div>
+                <h2 class="fw-bold text-dark">CRM System</h2>
+                <p class="text-muted">Sign in to your account</p>
+            </div>
+
+            <!-- Alert Messages -->
+            <div id="alertContainer"></div>
+
+            <!-- Login Form -->
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="email" class="form-label">
+                        <i class="fas fa-envelope me-2"></i>
+                        Email Address
+                    </label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">
+                        <i class="fas fa-lock me-2"></i>
+                        Password
+                    </label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="password" name="password" required>
+                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="rememberMe" name="rememberMe">
+                    <label class="form-check-label" for="rememberMe">
+                        Remember me
+                    </label>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">
+                        <span class="btn-text">
+                            <i class="fas fa-sign-in-alt me-2"></i>
+                            Sign In
+                        </span>
+                        <span class="btn-loading" style="display: none;">
+                            <span class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </span>
+                            Signing In...
+                        </span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Additional Links -->
+            <div class="text-center mt-4">
+                <a href="#" class="text-decoration-none" id="forgotPasswordLink">
+                    <i class="fas fa-question-circle me-1"></i>
+                    Forgot your password?
+                </a>
+            </div>
+
+            <!-- Demo Credentials -->
+            <div class="demo-credentials mt-4">
+                <h6 class="text-muted mb-2">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Demo Credentials
+                </h6>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <div class="demo-card" data-email="admin@crm.com" data-password="admin123">
+                            <strong>Admin</strong><br>
+                            <small class="text-muted">admin@crm.com / admin123</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <div class="demo-card" data-email="manager@crm.com" data-password="manager123">
+                            <strong>Manager</strong><br>
+                            <small class="text-muted">manager@crm.com / manager123</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <div class="demo-card" data-email="sales@crm.com" data-password="sales123">
+                            <strong>Sales</strong><br>
+                            <small class="text-muted">sales@crm.com / sales123</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <div class="demo-card" data-email="user@crm.com" data-password="user123">
+                            <strong>User</strong><br>
+                            <small class="text-muted">user@crm.com / user123</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4">
+            <p class="text-muted small">
+                &copy; 2024 CRM System. All rights reserved.
+            </p>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    
+    <!-- Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script src="assets/js/login.js"></script>
+</body>
+</html>
