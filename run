@@ -1,0 +1,83 @@
+<?php
+/**
+ * CRM System Runner
+ * 
+ * Este arquivo permite inicializar o servidor de desenvolvimento
+ * com o comando: php run
+ */
+
+// Verificar se o PHP está na versão adequada
+if (version_compare(PHP_VERSION, '7.4.0', '<')) {
+    echo "❌ Erro: PHP 7.4.0 ou superior é necessário. Versão atual: " . PHP_VERSION . "\n";
+    exit(1);
+}
+
+// Verificar se o Composer foi executado
+if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
+    echo "❌ Erro: Dependências não instaladas. Execute 'composer install' primeiro.\n";
+    exit(1);
+}
+
+// Verificar se o arquivo .env existe
+if (!file_exists(__DIR__ . '/.env')) {
+    echo "⚠️  Aviso: Arquivo .env não encontrado. Certifique-se de configurar as variáveis de ambiente.\n";
+}
+
+// Configurações do servidor
+$host = 'localhost';
+$basePort = 8000;
+$docroot = __DIR__ . '/public';
+
+// Função para verificar se uma porta está disponível
+function isPortAvailable($host, $port) {
+    $connection = @fsockopen($host, $port);
+    if (is_resource($connection)) {
+        fclose($connection);
+        return false;
+    }
+    return true;
+}
+
+// Encontrar uma porta disponível
+$port = $basePort;
+$maxAttempts = 10;
+$attempt = 0;
+
+while (!isPortAvailable($host, $port) && $attempt < $maxAttempts) {
+    $attempt++;
+    $port = $basePort + ($attempt * 10);
+    echo "⚠️  Porta {$basePort} ocupada, tentando porta {$port}...\n";
+}
+
+if (!isPortAvailable($host, $port)) {
+    echo "❌ Erro: Não foi possível encontrar uma porta disponível após {$maxAttempts} tentativas.\n";
+    echo "💡 Tente parar alguns serviços ou usar uma porta específica manualmente.\n";
+    exit(1);
+}
+
+if ($port !== $basePort) {
+    echo "✅ Porta {$port} encontrada e disponível!\n";
+}
+
+// Exibir informações de inicialização
+echo "🚀 Iniciando servidor CRM...\n";
+echo "📍 Host: {$host}\n";
+echo "🔌 Porta: {$port}\n";
+echo "📁 Diretório: {$docroot}\n";
+echo "🌐 URL: http://{$host}:{$port}\n";
+echo "\n";
+echo "📋 Páginas disponíveis:\n";
+echo "   • Login: http://{$host}:{$port}/login.html\n";
+echo "   • Dashboard: http://{$host}:{$port}/dashboard.html\n";
+echo "   • CRM: http://{$host}:{$port}/crm.html\n";
+echo "   • Leads: http://{$host}:{$port}/crm-leads.html\n";
+echo "   • Agendamentos: http://{$host}:{$port}/appointments.html\n";
+echo "   • Scheduling: http://{$host}:{$port}/scheduling.html\n";
+echo "\n";
+echo "⏹️  Para parar o servidor, pressione Ctrl+C\n";
+echo "\n";
+echo "" . str_repeat("=", 50) . "\n";
+
+// Iniciar o servidor PHP built-in
+$command = "php -S {$host}:{$port} -t {$docroot}";
+passthru($command);
