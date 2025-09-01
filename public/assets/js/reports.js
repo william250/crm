@@ -1,16 +1,18 @@
 // Reports Page JavaScript
 $(document).ready(function() {
-    // Initialize the page
-    initializePage();
+    // Set axios base URL
+    axios.defaults.baseURL = window.location.origin;
     
-    // Set default date range (last 30 days)
-    setDefaultDateRange();
+    // Aguardar um pouco para garantir que todos os elementos estejam renderizados
+    setTimeout(function() {
+        initializePage();
+    }, 100);
     
-    // Load initial report data
-    generateReport();
-    
-    // Event listeners
-    setupEventListeners();
+    // Handle tab changes
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        const targetTab = $(e.target).attr('data-bs-target');
+        loadTabData(targetTab);
+    });
 });
 
 function initializePage() {
@@ -20,23 +22,37 @@ function initializePage() {
     // Load user info
     loadUserInfo();
     
+    // Set default date range
+    setDefaultDateRange();
+    
+    // Setup event listeners
+    setupEventListeners();
+    
     // Initialize charts
     initializeCharts();
+    
+    // Load initial data
+    generateReport();
 }
 
 function checkAuthentication() {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
+    
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
     
-    // Set axios default header
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    // Set axios default configuration
+    axios.defaults.baseURL = window.location.origin;
+    if (token) {
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
 }
 
 function loadUserInfo() {
     const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    
     if (userData.name) {
         $('#userName').text(userData.name);
     }
@@ -62,8 +78,8 @@ function formatDate(date) {
 
 function setupEventListeners() {
     // Quick filter buttons
-    $('.quick-filter-btn').click(function() {
-        $('.quick-filter-btn').removeClass('active');
+    $('button[data-period]').click(function() {
+        $('button[data-period]').removeClass('active');
         $(this).addClass('active');
         
         const period = $(this).data('period');
@@ -81,6 +97,30 @@ function setupEventListeners() {
     // Group by change
     $('#groupBy').change(function() {
         generateReport();
+    });
+    
+    // Generate report button
+    $('#generateReportBtn').click(function() {
+        generateReport();
+    });
+    
+    // Reset filters button
+    $('#resetFiltersBtn').click(function() {
+        resetFilters();
+    });
+    
+    // Export buttons
+    $('#exportPdfBtn').click(function() {
+        exportReport('pdf');
+    });
+    
+    $('#exportExcelBtn').click(function() {
+        exportReport('excel');
+    });
+    
+    // Schedule report button
+    $('#scheduleReportBtn').click(function() {
+        scheduleReport();
     });
     
     // Logout
@@ -115,23 +155,48 @@ function generateReport() {
         groupBy: $('#groupBy').val()
     };
     
-    // Simulate API call with mock data
-    setTimeout(() => {
-        loadReportData(reportData);
-        hideLoading();
-    }, 1000);
+    // Make API call based on report type
+    const endpoint = getReportEndpoint(reportData.reportType);
+    const params = new URLSearchParams({
+        startDate: reportData.startDate,
+        endDate: reportData.endDate,
+        groupBy: reportData.groupBy
+    });
+    
+    axios.get(`/api/reports/${endpoint}?${params}`)
+        .then(response => {
+            if (response.data.success) {
+                loadReportData(response.data.data, reportData);
+            } else {
+                showAlert('error', 'Erro ao carregar dados do relatório');
+            }
+        })
+        .catch(error => {
+            console.error('Erro na requisição:', error);
+            showAlert('error', 'Erro ao conectar com o servidor');
+            // Fallback to mock data in case of error
+            loadReportData(generateMockReportData(reportData), reportData);
+        })
+        .finally(() => {
+            hideLoading();
+        });
 }
 
-function loadReportData(filters) {
-    // Mock data for demonstration
-    const mockData = generateMockReportData(filters);
+function loadReportData(data, filters = null) {
+    // If data is not provided, generate mock data
+    if (!data) {
+        data = generateMockReportData(filters || {});
+    }
     
     // Update KPIs
-    updateKPIs(mockData.kpis);
+    updateKPIs(data.kpis);
+    
+    // Store data globally for tab switching
+    window.currentReportData = data;
     
     // Update charts based on active tab
     const activeTab = $('.tab-pane.active').attr('id');
-    loadTabData('#' + activeTab, mockData);
+    loadTabData('#' + activeTab, data);
 }
 
 function generateMockReportData(filters) {
@@ -209,10 +274,10 @@ function generateFinancialData(days) {
 }
 
 function updateKPIs(kpis) {
-    $('#totalRevenue').text('$' + formatNumber(kpis.totalRevenue));
+    $('#totalRevenue').text('R$ ' + formatNumber(kpis.totalRevenue));
     $('#totalDeals').text(Math.round(kpis.totalDeals));
     $('#conversionRate').text(kpis.conversionRate.toFixed(1) + '%');
-    $('#avgDealSize').text('$' + formatNumber(kpis.avgDealSize));
+    $('#avgDealSize').text('R$ ' + formatNumber(kpis.avgDealSize));
     
     // Update changes
     updateKPIChange('#revenueChange', kpis.revenueChange);
@@ -230,9 +295,28 @@ function updateKPIChange(selector, change) {
     element.text((isPositive ? '+' : '') + change.toFixed(1) + '%');
 }
 
+function getReportEndpoint(reportType) {
+    switch(reportType) {
+        case 'sales':
+            return 'sales';
+        case 'financial':
+            return 'financial';
+        case 'performance':
+            return 'performance';
+        case 'overview':
+        default:
+            return 'sales'; // Default to sales for overview
+    }
+}
+
 function loadTabData(tabId, data = null) {
+    // Use stored data if available
+    if (!data && window.currentReportData) {
+        data = window.currentReportData;
+    }
+    
+    // Fallback to mock data if no data available
     if (!data) {
-        // Generate mock data if not provided
         data = generateMockReportData({
             startDate: $('#startDate').val(),
             endDate: $('#endDate').val(),
@@ -243,20 +327,34 @@ function loadTabData(tabId, data = null) {
     
     switch (tabId) {
         case '#overview':
+        case 'overview':
+            initializeOverviewCharts();
             updateRevenueChart(data.revenue);
             updateDealStatusChart(data.deals);
+            updatePipelineChart(data.pipeline);
             break;
         case '#sales':
-            updatePipelineChart(data.pipeline);
+        case 'sales':
+            initializeSalesCharts();
             updateSalesComparisonChart(data.revenue);
-            updateSalesMetrics();
+            updateClientAcquisitionChart(data.revenue);
+            updateSalesMetrics(data.performance?.metrics);
             break;
         case '#clients':
-            updateClientAcquisitionChart(data.revenue);
-            updateTopClientsChart(data.clients);
-            updateClientsTable(data.clients);
+        case 'clients':
+            initializeClientsCharts();
+            if (data.clients) {
+                updateTopClientsChart(data.clients.topClients || data.clients);
+                updateClientsTable(data.clients.topClients || data.clients);
+            } else {
+                const clientData = generateClientData();
+                updateTopClientsChart(clientData);
+                updateClientsTable(clientData);
+            }
             break;
         case '#financial':
+        case 'financial':
+            initializeFinancialCharts();
             updateFinancialChart(data.financial);
             updateProfitMarginChart(data.financial);
             updateFinancialSummary(data.financial);
@@ -268,61 +366,103 @@ function loadTabData(tabId, data = null) {
 let charts = {};
 
 function initializeCharts() {
-    // Initialize empty charts
-    charts.revenue = new Chart(document.getElementById('revenueChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [] },
-        options: getLineChartOptions('Revenue ($)')
-    });
+    // Initialize charts for the active tab
+    initializeOverviewCharts();
+}
+
+function initializeOverviewCharts() {
+    const revenueElement = document.getElementById('revenueChart');
+    const dealStatusElement = document.getElementById('dealStatusChart');
     
-    charts.dealStatus = new Chart(document.getElementById('dealStatusChart'), {
-        type: 'doughnut',
-        data: { labels: [], datasets: [] },
-        options: getDoughnutChartOptions()
-    });
+    if (revenueElement && !charts.revenue) {
+        charts.revenue = new Chart(revenueElement, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: getLineChartOptions('Receita (R$)')
+        });
+    }
     
-    charts.pipeline = new Chart(document.getElementById('pipelineChart'), {
-        type: 'bar',
-        data: { labels: [], datasets: [] },
-        options: getBarChartOptions('Pipeline Value ($)')
-    });
+    if (dealStatusElement && !charts.dealStatus) {
+        charts.dealStatus = new Chart(dealStatusElement, {
+            type: 'doughnut',
+            data: { labels: [], datasets: [] },
+            options: getDoughnutChartOptions()
+        });
+    }
+}
+
+function initializeSalesCharts() {
+    const pipelineElement = document.getElementById('pipelineChart');
+    const salesComparisonElement = document.getElementById('salesComparisonChart');
     
-    charts.salesComparison = new Chart(document.getElementById('salesComparisonChart'), {
-        type: 'bar',
-        data: { labels: [], datasets: [] },
-        options: getBarChartOptions('Sales ($)')
-    });
+    if (pipelineElement && !charts.pipeline) {
+        charts.pipeline = new Chart(pipelineElement, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: getBarChartOptions('Valor do Pipeline (R$)')
+        });
+    }
     
-    charts.clientAcquisition = new Chart(document.getElementById('clientAcquisitionChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [] },
-        options: getLineChartOptions('New Clients')
-    });
+    if (salesComparisonElement && !charts.salesComparison) {
+        charts.salesComparison = new Chart(salesComparisonElement, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: getBarChartOptions('Vendas (R$)')
+        });
+    }
+}
+
+function initializeClientsCharts() {
+    const clientAcquisitionElement = document.getElementById('clientAcquisitionChart');
+    const topClientsElement = document.getElementById('topClientsChart');
     
-    charts.topClients = new Chart(document.getElementById('topClientsChart'), {
-        type: 'horizontalBar',
-        data: { labels: [], datasets: [] },
-        options: getHorizontalBarChartOptions('Revenue ($)')
-    });
+    if (clientAcquisitionElement && !charts.clientAcquisition) {
+        charts.clientAcquisition = new Chart(clientAcquisitionElement, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: getLineChartOptions('Novos Clientes')
+        });
+    }
     
-    charts.financial = new Chart(document.getElementById('financialChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [] },
-        options: getLineChartOptions('Amount ($)')
-    });
+    if (topClientsElement && !charts.topClients) {
+        charts.topClients = new Chart(topClientsElement, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: getHorizontalBarChartOptions('Receita (R$)')
+        });
+    }
+}
+
+function initializeFinancialCharts() {
+    const financialElement = document.getElementById('financialChart');
+    const profitMarginElement = document.getElementById('profitMarginChart');
     
-    charts.profitMargin = new Chart(document.getElementById('profitMarginChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [] },
-        options: getLineChartOptions('Profit Margin (%)')
-    });
+    if (financialElement && !charts.financial) {
+        charts.financial = new Chart(financialElement, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: getLineChartOptions('Valor (R$)')
+        });
+    }
+    
+    if (profitMarginElement && !charts.profitMargin) {
+        charts.profitMargin = new Chart(profitMarginElement, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: getLineChartOptions('Margem de Lucro (%)')
+        });
+    }
 }
 
 function updateRevenueChart(data) {
+    if (!charts.revenue) {
+        return;
+    }
+    
     charts.revenue.data = {
         labels: data.labels,
         datasets: [{
-            label: 'Revenue',
+            label: 'Receita',
             data: data.data,
             borderColor: '#667eea',
             backgroundColor: 'rgba(102, 126, 234, 0.1)',
@@ -348,7 +488,7 @@ function updatePipelineChart(data) {
     charts.pipeline.data = {
         labels: data.labels,
         datasets: [{
-            label: 'Pipeline Value',
+            label: 'Valor do Pipeline',
             data: data.data,
             backgroundColor: '#667eea'
         }]
@@ -364,11 +504,11 @@ function updateSalesComparisonChart(data) {
     charts.salesComparison.data = {
         labels: data.labels.slice(-7), // Last 7 days
         datasets: [{
-            label: 'Current Period',
+            label: 'Período Atual',
             data: currentData.slice(-7),
             backgroundColor: '#667eea'
         }, {
-            label: 'Previous Period',
+            label: 'Período Anterior',
             data: previousData.slice(-7),
             backgroundColor: '#764ba2'
         }]
@@ -383,7 +523,7 @@ function updateClientAcquisitionChart(data) {
     charts.clientAcquisition.data = {
         labels: data.labels,
         datasets: [{
-            label: 'New Clients',
+            label: 'Novos Clientes',
             data: clientData,
             borderColor: '#28a745',
             backgroundColor: 'rgba(40, 167, 69, 0.1)',
@@ -412,14 +552,14 @@ function updateFinancialChart(data) {
     charts.financial.data = {
         labels: data.labels,
         datasets: [{
-            label: 'Revenue',
+            label: 'Receita',
             data: data.revenue,
             borderColor: '#28a745',
             backgroundColor: 'rgba(40, 167, 69, 0.1)',
             tension: 0.4,
             fill: false
         }, {
-            label: 'Expenses',
+            label: 'Despesas',
             data: data.expenses,
             borderColor: '#dc3545',
             backgroundColor: 'rgba(220, 53, 69, 0.1)',
@@ -450,13 +590,13 @@ function updateProfitMarginChart(data) {
     charts.profitMargin.update();
 }
 
-function updateSalesMetrics() {
-    const metrics = [
-        { name: 'Leads Generated', current: 245, previous: 198, change: 23.7 },
-        { name: 'Qualified Leads', current: 89, previous: 76, change: 17.1 },
-        { name: 'Proposals Sent', current: 34, previous: 41, change: -17.1 },
-        { name: 'Deals Closed', current: 18, previous: 15, change: 20.0 },
-        { name: 'Average Deal Cycle', current: 28, previous: 32, change: -12.5 }
+function updateSalesMetrics(metricsData = null) {
+    const metrics = metricsData || [
+        { name: 'Leads Gerados', current: 245, previous: 198, change: 23.7 },
+        { name: 'Leads Qualificados', current: 89, previous: 76, change: 17.1 },
+        { name: 'Propostas Enviadas', current: 34, previous: 41, change: -17.1 },
+        { name: 'Negócios Fechados', current: 18, previous: 15, change: 20.0 },
+        { name: 'Ciclo Médio de Vendas', current: 28, previous: 32, change: -12.5 }
     ];
     
     let html = '';
@@ -485,13 +625,14 @@ function updateClientsTable(clients) {
     let html = '';
     clients.forEach(client => {
         const statusClass = client.status === 'Active' ? 'success' : 'secondary';
+        const statusText = client.status === 'Active' ? 'Ativo' : 'Inativo';
         html += `
             <tr>
                 <td>${client.name}</td>
-                <td>$${formatNumber(client.revenue)}</td>
+                <td>R$${formatNumber(client.revenue)}</td>
                 <td>${client.deals}</td>
                 <td>${formatDate(new Date(client.lastActivity))}</td>
-                <td><span class="badge bg-${statusClass}">${client.status}</span></td>
+                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
             </tr>
         `;
     });
@@ -504,9 +645,9 @@ function updateFinancialSummary(data) {
     const totalExpenses = data.expenses.reduce((sum, val) => sum + val, 0);
     const netProfit = totalRevenue - totalExpenses;
     
-    $('#financialRevenue').text('$' + formatNumber(totalRevenue));
-    $('#financialExpenses').text('$' + formatNumber(totalExpenses));
-    $('#financialProfit').text('$' + formatNumber(netProfit));
+    $('#financialRevenue').text('R$' + formatNumber(totalRevenue));
+    $('#financialExpenses').text('R$' + formatNumber(totalExpenses));
+    $('#financialProfit').text('R$' + formatNumber(netProfit));
 }
 
 // Chart options
@@ -591,17 +732,17 @@ function getHorizontalBarChartOptions(xAxisLabel) {
 
 // Export functions
 function exportReport(format) {
-    showAlert('info', `Exporting report in ${format.toUpperCase()} format...`);
+    showAlert('info', `Exportando relatório em formato ${format.toUpperCase()}...`);
     
     // Simulate export process
     setTimeout(() => {
-        showAlert('success', `Report exported successfully in ${format.toUpperCase()} format!`);
+        showAlert('success', `Relatório exportado com sucesso em formato ${format.toUpperCase()}!`);
     }, 2000);
 }
 
 function scheduleReport() {
     // Show modal or form for scheduling
-    showAlert('info', 'Report scheduling feature coming soon!');
+    showAlert('info', 'Funcionalidade de agendamento de relatórios em breve!');
 }
 
 function resetFilters() {
@@ -653,9 +794,9 @@ function showAlert(type, message) {
 }
 
 function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    window.location.href = 'login.html';
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.php';
 }
 
 // Error handling
@@ -663,7 +804,15 @@ axios.interceptors.response.use(
     response => response,
     error => {
         if (error.response && error.response.status === 401) {
-            logout();
+            localStorage.removeItem('token');
+            showAlert('error', 'Sessão expirada. Redirecionando para login...');
+            setTimeout(() => {
+                window.location.href = 'login.php';
+            }, 2000);
+        } else if (error.response && error.response.status === 403) {
+            showAlert('error', 'Acesso negado. Você não tem permissão para acessar este recurso.');
+        } else if (error.response && error.response.status >= 500) {
+            showAlert('error', 'Erro interno do servidor. Tente novamente mais tarde.');
         }
         return Promise.reject(error);
     }

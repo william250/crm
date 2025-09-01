@@ -2,6 +2,8 @@
 
 use Slim\App;
 use Slim\Routing\RouteCollectorProxy;
+use App\Middleware\AuthMiddleware;
+use App\Controllers\ReportController;
 
 return function (App $app) {
     // Get database connection
@@ -19,6 +21,7 @@ return function (App $app) {
     $contractController = new ContractController($db);
     $chargeController = new ChargeController($db);
     $paymentController = new PaymentController($db);
+    $reportController = new ReportController($db);
     
     // Authentication routes (no middleware required)
     $app->group('/api/auth', function (RouteCollectorProxy $group) use ($authController) {
@@ -31,7 +34,7 @@ return function (App $app) {
     $app->group('/api', function (RouteCollectorProxy $group) use (
         $leadController, $clientController, $appointmentController, 
         $interactionController, $dashboardController, $userController,
-        $contractController, $chargeController, $paymentController, $authController
+        $contractController, $chargeController, $paymentController, $authController, $reportController
     ) {
         
         // Auth routes (protected)
@@ -98,6 +101,7 @@ return function (App $app) {
         $group->delete('/users/{id}', [$userController, 'deleteUser']);
         $group->get('/users/stats/overview', [$userController, 'getUserStats']);
         $group->put('/users/profile/update', [$userController, 'updateProfile']);
+        $group->get('/salespeople', [$userController, 'getSalespeople']);
         
         // Contract routes
         $group->get('/contracts', [$contractController, 'getContracts']);
@@ -127,7 +131,7 @@ return function (App $app) {
         $group->get('/payments/stats/overview', [$paymentController, 'getPaymentStats']);
         $group->post('/payments/{id}/refund', [$paymentController, 'refundPayment']);
         
-    })->add(new JWTMiddleware($container->get('jwt_secret')));
+    })->add(new AuthMiddleware());
     
     // Health check endpoint (no authentication required)
     $app->get('/api/health', function ($request, $response, $args) {
@@ -138,6 +142,11 @@ return function (App $app) {
         ]));
         return $response->withHeader('Content-Type', 'application/json');
     });
+    
+    // Report routes
+    $group->get('/reports/sales', [$reportController, 'getSalesReport']);
+    $group->get('/reports/financial', [$reportController, 'getFinancialReport']);
+    $group->get('/reports/performance', [$reportController, 'getPerformanceReport']);
     
     // Catch-all route for API 404s
     $app->map(['GET', 'POST', 'PUT', 'DELETE', 'PATCH'], '/api/{routes:.+}', function ($request, $response) {

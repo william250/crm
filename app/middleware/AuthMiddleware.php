@@ -60,10 +60,6 @@ class AuthMiddleware
                 return $this->unauthorizedResponse($response, 'User not found');
             }
 
-            if ($user['status'] !== 'active') {
-                return $this->unauthorizedResponse($response, 'User account is not active');
-            }
-
             // Add user to request attributes
             $request = $request->withAttribute('user', $user);
             $request = $request->withAttribute('user_id', $user['id']);

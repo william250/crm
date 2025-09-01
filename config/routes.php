@@ -68,8 +68,13 @@ $app->group('/api', function (RouteCollectorProxy $group) {
         $group->put('/charges/{id}', [BillingController::class, 'updateCharge']);
         $group->delete('/charges/{id}', [BillingController::class, 'deleteCharge']);
         $group->post('/payment-link', [BillingController::class, 'generatePaymentLink']);
+        
+        // Invoice routes
         $group->get('/invoices', [BillingController::class, 'getInvoices']);
         $group->post('/invoices', [BillingController::class, 'createInvoice']);
+        $group->get('/invoices/{id}', [BillingController::class, 'getInvoice']);
+        $group->put('/invoices/{id}', [BillingController::class, 'updateInvoice']);
+        $group->delete('/invoices/{id}', [BillingController::class, 'deleteInvoice']);
     });
     
     // Contracts Module

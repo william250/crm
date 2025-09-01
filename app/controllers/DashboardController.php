@@ -38,13 +38,13 @@ class DashboardController {
             $convertedLeads = $convertedStmt->fetch(PDO::FETCH_ASSOC)['converted'];
             
             // Get today's appointments
-            $todayAppointmentsSql = "SELECT COUNT(*) as today_appointments FROM appointments WHERE DATE(appointment_date) = CURDATE()";
+            $todayAppointmentsSql = "SELECT COUNT(*) as today_appointments FROM appointments WHERE DATE(start_time) = CURDATE()";
             $todayAppointmentsStmt = $this->db->prepare($todayAppointmentsSql);
             $todayAppointmentsStmt->execute();
             $todayAppointments = $todayAppointmentsStmt->fetch(PDO::FETCH_ASSOC)['today_appointments'];
             
             // Get pending tasks (interactions with type 'task' and no completion date)
-            $pendingTasksSql = "SELECT COUNT(*) as pending_tasks FROM interactions WHERE type = 'task' AND notes NOT LIKE '%completed%'";
+            $pendingTasksSql = "SELECT COUNT(*) as pending_tasks FROM interactions WHERE type = 'task' AND description NOT LIKE '%completed%'";
             $pendingTasksStmt = $this->db->prepare($pendingTasksSql);
             $pendingTasksStmt->execute();
             $pendingTasks = $pendingTasksStmt->fetch(PDO::FETCH_ASSOC)['pending_tasks'];

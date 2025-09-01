@@ -26,7 +26,7 @@ $(document).ready(function() {
 function initializeCRM() {
     // Check authentication
     if (!isAuthenticated()) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
 
@@ -1076,7 +1076,7 @@ function isAuthenticated() {
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = 'login.html';
+    window.location.href = 'login.php';
 }
 
 /**

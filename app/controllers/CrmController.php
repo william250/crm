@@ -68,7 +68,7 @@ class CrmController
     {
         try {
             $leadId = (int)$args['id'];
-            $lead = $this->leadModel->findById($leadId);
+            $lead = $this->leadModel->getById($leadId);
 
             if (!$lead) {
                 return $this->jsonResponse($response, ['error' => 'Lead not found'], 404);
@@ -121,7 +121,7 @@ class CrmController
             ];
 
             $leadId = $this->leadModel->create($leadData);
-            $lead = $this->leadModel->findById($leadId);
+            $lead = $this->leadModel->getById($leadId);
 
             return $this->jsonResponse($response, $lead, 201);
         } catch (\Exception $e) {
@@ -138,7 +138,7 @@ class CrmController
             $user = $request->getAttribute('user');
 
             // Check if lead exists
-            $existingLead = $this->leadModel->findById($leadId);
+            $existingLead = $this->leadModel->getById($leadId);
             if (!$existingLead) {
                 return $this->jsonResponse($response, ['error' => 'Lead not found'], 404);
             }
@@ -173,7 +173,7 @@ class CrmController
             });
 
             $this->leadModel->update($leadId, $updateData);
-            $lead = $this->leadModel->findById($leadId);
+            $lead = $this->leadModel->getById($leadId);
 
             return $this->jsonResponse($response, $lead);
         } catch (\Exception $e) {
@@ -188,7 +188,7 @@ class CrmController
             $leadId = (int)$args['id'];
 
             // Check if lead exists
-            $lead = $this->leadModel->findById($leadId);
+            $lead = $this->leadModel->getById($leadId);
             if (!$lead) {
                 return $this->jsonResponse($response, ['error' => 'Lead not found'], 404);
             }
@@ -208,7 +208,7 @@ class CrmController
             $user = $request->getAttribute('user');
 
             // Check if lead exists
-            $lead = $this->leadModel->findById($leadId);
+            $lead = $this->leadModel->getById($leadId);
             if (!$lead) {
                 return $this->jsonResponse($response, ['error' => 'Lead not found'], 404);
             }
@@ -265,17 +265,26 @@ class CrmController
     public function getPipeline(Request $request, Response $response): Response
     {
         try {
+            // Get all deals
+            $deals = $this->leadModel->getAll();
+            
+            // Get pipeline statistics
             $pipeline = [
                 'new' => $this->leadModel->getCountByStatus('new'),
                 'contacted' => $this->leadModel->getCountByStatus('contacted'),
                 'qualified' => $this->leadModel->getCountByStatus('qualified'),
                 'proposal' => $this->leadModel->getCountByStatus('proposal'),
-                'negotiation' => $this->leadModel->getCountByStatus('negotiation'),
-                'converted' => $this->leadModel->getCountByStatus('converted'),
+                'won' => $this->leadModel->getCountByStatus('won'),
                 'lost' => $this->leadModel->getCountByStatus('lost')
             ];
+            
+            // Return both deals and statistics
+            $response_data = [
+                'deals' => $deals,
+                'statistics' => $pipeline
+            ];
 
-            return $this->jsonResponse($response, $pipeline);
+            return $this->jsonResponse($response, $response_data);
         } catch (\Exception $e) {
             return $this->jsonResponse($response, ['error' => 'Failed to load pipeline'], 500);
         }
@@ -285,7 +294,7 @@ class CrmController
     public function getSalespeople(Request $request, Response $response): Response
     {
         try {
-            $salespeople = $this->userModel->getUsersByRole('salesperson');
+            $salespeople = $this->userModel->getUsersByRole('seller');
             return $this->jsonResponse($response, $salespeople);
         } catch (\Exception $e) {
             return $this->jsonResponse($response, ['error' => 'Failed to load salespeople'], 500);
@@ -305,5 +314,128 @@ class CrmController
         return $response
             ->withHeader('Content-Type', 'application/json')
             ->withStatus($status);
+    }
+
+    // Deal Management Methods
+    public function getDeals($request, $response, $args) {
+        try {
+            $deals = $this->leadModel->getAllLeads();
+            return $this->jsonResponse($response, $deals);
+        } catch (Exception $e) {
+            error_log('Error getting deals: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => 'Failed to get deals'], 500);
+        }
+    }
+
+    public function getDeal($request, $response, $args) {
+        try {
+            $dealId = $args['id'];
+            $deal = $this->leadModel->getLeadById($dealId);
+            
+            if (!$deal) {
+                return $this->jsonResponse($response, ['error' => 'Deal not found'], 404);
+            }
+            
+            return $this->jsonResponse($response, $deal);
+        } catch (Exception $e) {
+            error_log('Error getting deal: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => 'Failed to get deal'], 500);
+        }
+    }
+
+    public function createDeal($request, $response, $args) {
+        try {
+            $data = json_decode($request->getBody()->getContents(), true);
+            
+            // Validate required fields
+            if (empty($data['title']) || empty($data['client_id'])) {
+                return $this->jsonResponse($response, ['error' => 'Title and client are required'], 400);
+            }
+            
+            // Prepare deal data
+            $dealData = [
+                'title' => $data['title'],
+                'client_id' => $data['client_id'],
+                'value' => $data['value'] ?? 0,
+                'status' => $data['status'] ?? 'new',
+                'probability' => $data['probability'] ?? 0,
+                'close_date' => $data['close_date'] ?? null,
+                'notes' => $data['notes'] ?? '',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+            
+            $dealId = $this->leadModel->createLead($dealData);
+            
+            if ($dealId) {
+                $deal = $this->leadModel->getLeadById($dealId);
+                return $this->jsonResponse($response, $deal, 201);
+            } else {
+                return $this->jsonResponse($response, ['error' => 'Failed to create deal'], 500);
+            }
+        } catch (Exception $e) {
+            error_log('Error creating deal: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => 'Failed to create deal'], 500);
+        }
+    }
+
+    public function updateDeal($request, $response, $args) {
+        try {
+            $dealId = $args['id'];
+            $data = json_decode($request->getBody()->getContents(), true);
+            
+            // Check if deal exists
+            $existingDeal = $this->leadModel->getLeadById($dealId);
+            if (!$existingDeal) {
+                return $this->jsonResponse($response, ['error' => 'Deal not found'], 404);
+            }
+            
+            // Prepare update data
+            $updateData = [
+                'title' => $data['title'] ?? $existingDeal['title'],
+                'client_id' => $data['client_id'] ?? $existingDeal['client_id'],
+                'value' => $data['value'] ?? $existingDeal['value'],
+                'status' => $data['status'] ?? $existingDeal['status'],
+                'probability' => $data['probability'] ?? $existingDeal['probability'],
+                'close_date' => $data['close_date'] ?? $existingDeal['close_date'],
+                'notes' => $data['notes'] ?? $existingDeal['notes'],
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+            
+            $success = $this->leadModel->updateLead($dealId, $updateData);
+            
+            if ($success) {
+                $deal = $this->leadModel->getLeadById($dealId);
+                return $this->jsonResponse($response, $deal);
+            } else {
+                return $this->jsonResponse($response, ['error' => 'Failed to update deal'], 500);
+            }
+        } catch (Exception $e) {
+            error_log('Error updating deal: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => 'Failed to update deal'], 500);
+        }
+    }
+
+    public function deleteDeal($request, $response, $args) {
+        try {
+            $dealId = $args['id'];
+            
+            // Check if deal exists
+            $existingDeal = $this->leadModel->getLeadById($dealId);
+            if (!$existingDeal) {
+                return $this->jsonResponse($response, ['error' => 'Deal not found'], 404);
+            }
+            
+            $success = $this->leadModel->deleteLead($dealId);
+            
+            if ($success) {
+                return $this->jsonResponse($response, ['message' => 'Deal deleted successfully']);
+            } else {
+                return $this->jsonResponse($response, ['error' => 'Failed to delete deal'], 500);
+            }
+        } catch (Exception $e) {
+            error_log('Error deleting deal: ' . $e->getMessage());
+            return $this->jsonResponse($response, ['error' => 'Failed to delete deal'], 500);
+        }
     }
 }

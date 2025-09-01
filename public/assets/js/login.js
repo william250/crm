@@ -14,7 +14,7 @@ $(document).ready(function() {
 function initializeLogin() {
     // Check if user is already logged in
     if (isAuthenticated()) {
-        window.location.href = 'dashboard.html';
+        window.location.href = 'dashboard.php';
         return;
     }
 
@@ -183,7 +183,7 @@ function handleLoginSuccess(data) {
     
     // Redirect to dashboard after a short delay
     setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = 'dashboard.php';
     }, 1500);
 }
 

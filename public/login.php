@@ -3,13 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - CRM System</title>
+    <title>Login - CloutHub</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/images/favicon.png">
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS Variables -->
+    <style>
+    :root {
+        --primary-color: #CA773B;
+        --primary-hover: #B8692F;
+        --primary-light: #E8A76B;
+        --primary-dark: #A0612A;
+        --primary-bg: #282c3d;
+    }
+    </style>
     
     <!-- Custom CSS -->
     <link href="assets/css/login.css" rel="stylesheet">
@@ -19,11 +33,10 @@
         <div class="login-card">
             <!-- Logo and Title -->
             <div class="text-center mb-4">
-                <div class="logo-container">
-                    <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                <div class="logo-container mb-3">
+                    <img src="assets/images/logo-dark.svg" alt="CloutHub" height="60" class="mb-2">
                 </div>
-                <h2 class="fw-bold text-dark">CRM System</h2>
-                <p class="text-muted">Sign in to your account</p>
+                <p class="text-muted">Faça login em sua conta</p>
             </div>
 
             <!-- Alert Messages -->
@@ -123,7 +136,7 @@
         <!-- Footer -->
         <div class="text-center mt-4">
             <p class="text-muted small">
-                &copy; 2024 CRM System. All rights reserved.
+                &copy; 2024 CloutHub. Todos os direitos reservados.
             </p>
         </div>
     </div>

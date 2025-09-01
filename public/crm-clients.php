@@ -1,95 +1,13 @@
+<?php
+$pageTitle = 'Clients - CRM System';
+$currentPage = 'crm';
+$currentSubPage = 'clients';
+?>
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clients - CRM System</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
-    <link href="assets/css/dashboard.css" rel="stylesheet">
-</head>
+<?php include 'components/head.php'; ?>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-chart-line me-2"></i>
-                CRM System
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="dashboard.html">
-                            <i class="fas fa-tachometer-alt me-1"></i>
-                            Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle active" href="#" id="crmDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-users me-1"></i>
-                            CRM
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item active" href="crm-clients.html"><i class="fas fa-user-tie me-2"></i>Clients</a></li>
-                            <li><a class="dropdown-item" href="crm-leads.html"><i class="fas fa-user-plus me-2"></i>Leads</a></li>
-                            <li><a class="dropdown-item" href="crm-pipeline.html"><i class="fas fa-funnel-dollar me-2"></i>Pipeline</a></li>
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="scheduling.html">
-                            <i class="fas fa-calendar-alt me-1"></i>
-                            Scheduling
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="billing.html">
-                            <i class="fas fa-file-invoice-dollar me-1"></i>
-                            Billing
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="contracts.html">
-                            <i class="fas fa-file-contract me-1"></i>
-                            Contracts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="reports.html">
-                            <i class="fas fa-chart-bar me-1"></i>
-                            Reports
-                        </a>
-                    </li>
-                </ul>
-                
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>
-                            <span id="userName">Loading...</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.html"><i class="fas fa-user me-2"></i>Profile</a></li>
-                            <li><a class="dropdown-item" href="settings.html"><i class="fas fa-cog me-2"></i>Settings</a></li>
-                            <li><a class="dropdown-item" href="users.html" id="usersLink" style="display: none;"><i class="fas fa-users-cog me-2"></i>Users</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <?php include 'components/header.php'; ?>
 
     <!-- Main Content -->
     <div class="container-fluid main-content">
@@ -343,16 +261,11 @@
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php include 'components/footer.php'; ?>
     
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    
-    <!-- Axios -->
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <!-- Custom JS -->
-    <script src="assets/js/crm-clients.js"></script>
+    <?php
+    $page_scripts = ['assets/js/crm-clients.js'];
+    include 'components/scripts.php';
+    ?>
 </body>
 </html>

@@ -19,10 +19,13 @@ $(document).ready(function() {
 function initializeDashboard() {
     // Check authentication
     if (!isAuthenticated()) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
 
+    // Setup axios interceptors FIRST
+    setupAxiosInterceptors();
+    
     // Load user info
     loadUserInfo();
     
@@ -31,9 +34,6 @@ function initializeDashboard() {
     
     // Setup event listeners
     setupEventListeners();
-    
-    // Setup axios interceptors
-    setupAxiosInterceptors();
 }
 
 /**
@@ -79,7 +79,7 @@ function loadDashboard() {
  * Load dashboard statistics
  */
 function loadDashboardStats() {
-    return axios.get('/api/crm/dashboard')
+    return axios.get('/api/dashboard/stats')
         .then(response => {
             if (response.data.success) {
                 const stats = response.data.data;
@@ -102,7 +102,7 @@ function loadDashboardStats() {
  * Load recent leads
  */
 function loadRecentLeads() {
-    return axios.get('/api/crm/leads/recent')
+    return axios.get('/api/dashboard/recent-leads')
         .then(response => {
             if (response.data.success) {
                 const leads = response.data.data;
@@ -120,7 +120,7 @@ function loadRecentLeads() {
  * Load upcoming appointments
  */
 function loadUpcomingAppointments() {
-    return axios.get('/api/scheduling/appointments/upcoming')
+    return axios.get('/api/dashboard/upcoming-appointments')
         .then(response => {
             if (response.data.success) {
                 const appointments = response.data.data;
@@ -138,7 +138,7 @@ function loadUpcomingAppointments() {
  * Load pipeline data for chart
  */
 function loadPipelineData() {
-    return axios.get('/api/crm/pipeline')
+    return axios.get('/api/dashboard/lead-pipeline')
         .then(response => {
             if (response.data.success) {
                 const pipeline = response.data.data;
@@ -155,7 +155,7 @@ function loadPipelineData() {
  * Load lead sources for chart
  */
 function loadLeadSources() {
-    return axios.get('/api/crm/leads/by-source')
+    return axios.get('/api/dashboard/lead-sources')
         .then(response => {
             if (response.data.success) {
                 const sources = response.data.data;
@@ -492,7 +492,7 @@ function escapeHtml(text) {
  * Check if user is authenticated
  */
 function isAuthenticated() {
-    return localStorage.getItem('token') !== null;
+    return localStorage.getItem('token') !== null || sessionStorage.getItem('token') !== null;
 }
 
 /**
@@ -507,14 +507,14 @@ function logout() {
             localStorage.removeItem('user');
             
             // Redirect to login
-            window.location.href = 'login.html';
+        window.location.href = 'login.php';
         })
         .catch(error => {
             console.error('Logout error:', error);
             // Clear local storage anyway
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            window.location.href = 'login.html';
+            window.location.href = 'login.php';
         });
 }
 
@@ -525,7 +525,7 @@ function setupAxiosInterceptors() {
     // Request interceptor to add auth token
     axios.interceptors.request.use(
         config => {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -543,7 +543,7 @@ function setupAxiosInterceptors() {
             if (error.response && error.response.status === 401) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
-                window.location.href = 'login.html';
+                window.location.href = 'login.php';
             }
             return Promise.reject(error);
         }

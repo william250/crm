@@ -1,293 +1,120 @@
+<?php
+$pageTitle = 'Sales Pipeline - CRM System';
+$currentPage = 'crm';
+$currentSubPage = 'pipeline';
+?>
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Pipeline - CRM System</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
-    <style>
-        .sidebar {
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
-            padding: 12px 20px;
-            margin: 2px 0;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-        
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            color: white;
-            background-color: rgba(255, 255, 255, 0.1);
-            transform: translateX(5px);
-        }
-        
-        .main-content {
-            background-color: #f8f9fa;
-            min-height: 100vh;
-        }
-        
-        .page-header {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-        
-        .pipeline-stage {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            min-height: 500px;
-        }
-        
-        .pipeline-stage-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px;
-            border-radius: 10px 10px 0 0;
-            font-weight: 600;
-        }
-        
-        .deal-card {
-            background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            padding: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        }
-        
-        .deal-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        .deal-value {
-            font-size: 1.1em;
-            font-weight: 600;
-            color: #28a745;
-        }
-        
-        .deal-company {
-            font-weight: 600;
-            color: #495057;
-        }
-        
-        .deal-contact {
-            color: #6c757d;
-            font-size: 0.9em;
-        }
-        
-        .deal-date {
-            color: #6c757d;
-            font-size: 0.8em;
-        }
-        
-        .stage-total {
-            font-size: 0.9em;
-            opacity: 0.8;
-        }
-        
-        .pipeline-stats {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            text-align: center;
-            padding: 20px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .stat-value {
-            font-size: 2em;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.9;
-        }
-        
-        .loading-spinner {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 200px;
-        }
-        
-        .empty-stage {
-            text-align: center;
-            padding: 40px 20px;
-            color: #6c757d;
-        }
-        
-        .priority-high {
-            border-left: 4px solid #dc3545;
-        }
-        
-        .priority-medium {
-            border-left: 4px solid #ffc107;
-        }
-        
-        .priority-low {
-            border-left: 4px solid #28a745;
-        }
-    </style>
-</head>
+<?php include 'components/head.php'; ?>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 sidebar p-0">
-                <div class="p-4">
-                    <h4 class="text-white mb-4">
-                        <i class="fas fa-chart-line me-2"></i>
-                        CRM System
-                    </h4>
-                    
-                    <nav class="nav flex-column">
-                        <a class="nav-link" href="dashboard.html">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            Dashboard
-                        </a>
-                        <a class="nav-link" href="crm-clients.html">
-                            <i class="fas fa-users me-2"></i>
-                            Clients
-                        </a>
-                        <a class="nav-link active" href="crm-pipeline.html">
-                            <i class="fas fa-funnel-dollar me-2"></i>
-                            Pipeline
-                        </a>
-                        <a class="nav-link" href="billing.html">
-                            <i class="fas fa-file-invoice-dollar me-2"></i>
-                            Billing
-                        </a>
-                        <a class="nav-link" href="contracts.html">
-                            <i class="fas fa-file-contract me-2"></i>
-                            Contracts
-                        </a>
-                        <a class="nav-link" href="reports.html">
-                            <i class="fas fa-chart-bar me-2"></i>
-                            Reports
-                        </a>
-                        <a class="nav-link" href="profile.html">
-                            <i class="fas fa-user me-2"></i>
-                            Profile
-                        </a>
-                        <a class="nav-link" href="settings.html">
-                            <i class="fas fa-cog me-2"></i>
-                            Settings
-                        </a>
-                        <a class="nav-link" href="#" id="usersLink" style="display: none;">
-                            <i class="fas fa-users-cog me-2"></i>
-                            Users
-                        </a>
-                    </nav>
-                </div>
-                
-                <div class="mt-auto p-4">
-                    <div class="dropdown">
-                        <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-2"></i>
-                            <span id="userName">User</span>
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="profile.html">Profile</a></li>
-                            <li><a class="dropdown-item" href="settings.html">Settings</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" id="logoutBtn">Logout</a></li>
-                        </ul>
+    <?php include 'components/header.php'; ?>
+
+    <!-- Main Content -->
+    <div class="container-fluid main-content">
+        <!-- Page Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">Sales Pipeline</h1>
+                        <p class="text-muted mb-0">Manage your sales opportunities and track deal progress</p>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10 main-content p-4">
-                <!-- Page Header -->
-                <div class="page-header p-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h2 class="mb-1">
-                                <i class="fas fa-funnel-dollar text-primary me-2"></i>
-                                Sales Pipeline
-                            </h2>
-                            <p class="text-muted mb-0">Manage your sales opportunities and track deal progress</p>
-                        </div>
-                        <div>
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDealModal">
-                                <i class="fas fa-plus me-2"></i>
-                                Add Deal
-                            </button>
-                        </div>
+                    <div>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDealModal">
+                            <i class="fas fa-plus me-1"></i>
+                            Add Deal
+                        </button>
                     </div>
-                </div>
-                
-                <!-- Pipeline Statistics -->
-                <div class="pipeline-stats">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <div class="stat-value" id="totalDeals">0</div>
-                                <div class="stat-label">Total Deals</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <div class="stat-value" id="totalValue">$0</div>
-                                <div class="stat-label">Pipeline Value</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <div class="stat-value" id="avgDealSize">$0</div>
-                                <div class="stat-label">Avg Deal Size</div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="stat-card">
-                                <div class="stat-value" id="winRate">0%</div>
-                                <div class="stat-label">Win Rate</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Loading State -->
-                <div id="loadingState" class="text-center" style="display: none;">
-                    <div class="loading-spinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Pipeline Stages -->
-                <div id="pipelineContainer" class="row">
-                    <!-- Stages will be dynamically loaded here -->
                 </div>
             </div>
         </div>
+
+        <!-- Pipeline Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="h5 mb-0" id="totalDeals">0</div>
+                                <div class="small">Total Deals</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-handshake fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="h5 mb-0" id="totalValue">$0</div>
+                                <div class="small">Pipeline Value</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-dollar-sign fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="h5 mb-0" id="avgDealSize">$0</div>
+                                <div class="small">Avg Deal Size</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-chart-line fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="h5 mb-0" id="conversionRate">0%</div>
+                                <div class="small">Conversion Rate</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-percentage fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Stages -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Sales Pipeline</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="loadingSpinner" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading pipeline...</p>
+                        </div>
+                        <div id="pipelineContainer" class="row">
+                            <!-- Pipeline stages will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
     
     <!-- Add Deal Modal -->
@@ -324,8 +151,10 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="dealCompany" class="form-label">Company *</label>
-                                    <input type="text" class="form-control" id="dealCompany" name="company" required>
+                                    <label for="dealClient" class="form-label">Client *</label>
+                                    <select class="form-select" id="dealClient" name="client_id" required>
+                                        <option value="">Select Client</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -403,7 +232,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form id="editDealForm">
-                    <input type="hidden" name="deal_id">
+                    <input type="hidden" id="editDealId" name="deal_id">
                     <div class="modal-body">
                         <div class="row">
                             <div class="col-md-6">
@@ -426,8 +255,10 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="editDealCompany" class="form-label">Company *</label>
-                                    <input type="text" class="form-control" id="editDealCompany" name="company" required>
+                                    <label for="editDealClient" class="form-label">Client *</label>
+                                    <select class="form-select" id="editDealClient" name="client_id" required>
+                                        <option value="">Select Client</option>
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -485,6 +316,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" id="deleteDealBtn">Delete</button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Update Deal</button>
                     </div>
@@ -493,16 +325,11 @@
         </div>
     </div>
     
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php include 'components/footer.php'; ?>
     
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    
-    <!-- Axios -->
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <!-- Custom JS -->
-    <script src="assets/js/crm-pipeline.js"></script>
+    <?php
+    $page_scripts = ['assets/js/crm-pipeline.js'];
+    include 'components/scripts.php';
+    ?>
 </body>
 </html>

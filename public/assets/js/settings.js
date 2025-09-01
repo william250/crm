@@ -1,723 +1,620 @@
 // Settings Page JavaScript
-$(document).ready(function() {
-    // Initialize the page
-    initializePage();
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Load settings data
-    loadSettingsData();
-});
 
-function initializePage() {
-    // Check authentication
-    checkAuthentication();
-    
-    // Load user info
-    loadUserInfo();
-    
-    // Setup theme previews
-    setupThemePreviews();
-    
-    // Setup file upload
-    setupFileUpload();
-}
-
-function setupEventListeners() {
-    // Logout button
-    $('#logoutBtn').on('click', function(e) {
-        e.preventDefault();
-        logout();
-    });
-    
-    // Tab switching
-    $('[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
-        const target = $(e.target).attr('data-bs-target');
-        loadTabContent(target);
-    });
-    
-    // Theme selection
-    $('.theme-preview').on('click', function() {
-        $('.theme-preview').removeClass('selected');
-        $(this).addClass('selected');
-    });
-    
-    // File upload for backup restore
-    $('#backupFile').on('change', function() {
-        const file = this.files[0];
-        if (file) {
-            restoreFromBackup(file);
-        }
-    });
-}
-
-function setupThemePreviews() {
-    // Add click handlers for theme previews
-    $('.theme-preview').each(function() {
-        $(this).on('click', function() {
-            const theme = $(this).data('theme');
-            applyTheme(theme);
-        });
-    });
-}
-
-function setupFileUpload() {
-    // Setup drag and drop for backup files
-    const dropZone = $('#backup');
-    
-    dropZone.on('dragover', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $(this).addClass('drag-over');
-    });
-    
-    dropZone.on('dragleave', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $(this).removeClass('drag-over');
-    });
-    
-    dropZone.on('drop', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        $(this).removeClass('drag-over');
-        
-        const files = e.originalEvent.dataTransfer.files;
-        if (files.length > 0) {
-            restoreFromBackup(files[0]);
-        }
-    });
-}
-
-function checkAuthentication() {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-        window.location.href = 'login.html';
-        return;
+class SettingsManager {
+    constructor() {
+        this.currentSection = 'general';
+        this.settings = {};
+        this.init();
     }
-    
-    // Set up axios defaults
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    
-    // Handle token expiration
-    axios.interceptors.response.use(
-        response => response,
-        error => {
-            if (error.response && error.response.status === 401) {
-                localStorage.removeItem('authToken');
-                window.location.href = 'login.html';
-            }
-            return Promise.reject(error);
-        }
-    );
-}
 
-function loadUserInfo() {
-    // Mock user data - replace with actual API call
-    const userData = {
-        name: 'John Doe',
-        role: 'Administrator'
-    };
-    
-    $('#userName').text(userData.name);
-    
-    // Show users link for admin
-    if (userData.role === 'Administrator') {
-        $('#usersLink').show();
-    }
-}
-
-function loadSettingsData() {
-    showLoading();
-    
-    // Simulate API call
-    setTimeout(() => {
-        // Load general settings
-        loadGeneralSettings();
-        
-        // Load notification settings
-        loadNotificationSettings();
-        
-        // Load security settings
-        loadSecuritySettings();
-        
-        // Load integrations
-        loadIntegrations();
-        
-        // Load backups list
-        loadBackupsList();
-        
-        hideLoading();
-    }, 1000);
-}
-
-function loadTabContent(target) {
-    switch(target) {
-        case '#notifications':
-            loadNotificationSettings();
-            break;
-        case '#security':
-            loadSecuritySettings();
-            break;
-        case '#integrations':
-            loadIntegrations();
-            break;
-        case '#backup':
-            loadBackupsList();
-            break;
-    }
-}
-
-function loadGeneralSettings() {
-    // Mock settings data - replace with actual API call
-    const settings = {
-        companyName: 'Acme Corporation',
-        timeZone: 'America/New_York',
-        dateFormat: 'MM/DD/YYYY',
-        currency: 'USD',
-        language: 'en'
-    };
-    
-    $('#companyName').val(settings.companyName);
-    $('#timeZone').val(settings.timeZone);
-    $('#dateFormat').val(settings.dateFormat);
-    $('#currency').val(settings.currency);
-    $('#language').val(settings.language);
-}
-
-function loadNotificationSettings() {
-    // Mock notification settings
-    const notifications = [
-        {
-            id: 'email_new_lead',
-            title: 'New Lead Notifications',
-            description: 'Receive email when a new lead is created',
-            type: 'email',
-            enabled: true
-        },
-        {
-            id: 'email_deal_closed',
-            title: 'Deal Closed Notifications',
-            description: 'Receive email when a deal is closed',
-            type: 'email',
-            enabled: true
-        },
-        {
-            id: 'push_task_reminder',
-            title: 'Task Reminders',
-            description: 'Receive push notifications for task reminders',
-            type: 'push',
-            enabled: false
-        },
-        {
-            id: 'sms_urgent_alerts',
-            title: 'Urgent Alerts',
-            description: 'Receive SMS for urgent system alerts',
-            type: 'sms',
-            enabled: false
-        }
-    ];
-    
-    let html = '';
-    notifications.forEach(notification => {
-        html += `
-            <div class="setting-item">
-                <div class="setting-info">
-                    <div class="setting-title">${notification.title}</div>
-                    <div class="setting-description">${notification.description}</div>
-                </div>
-                <div class="setting-control">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="${notification.id}" ${notification.enabled ? 'checked' : ''}>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    $('#notificationSettings').html(html);
-}
-
-function loadSecuritySettings() {
-    // Mock security settings
-    const securitySettings = [
-        {
-            id: 'two_factor_auth',
-            title: 'Two-Factor Authentication',
-            description: 'Add an extra layer of security to your account',
-            enabled: false
-        },
-        {
-            id: 'login_alerts',
-            title: 'Login Alerts',
-            description: 'Get notified of new login attempts',
-            enabled: true
-        },
-        {
-            id: 'password_expiry',
-            title: 'Password Expiry',
-            description: 'Require password changes every 90 days',
-            enabled: false
-        },
-        {
-            id: 'ip_whitelist',
-            title: 'IP Whitelist',
-            description: 'Restrict access to specific IP addresses',
-            enabled: false
-        }
-    ];
-    
-    let html = '';
-    securitySettings.forEach(setting => {
-        html += `
-            <div class="setting-item">
-                <div class="setting-info">
-                    <div class="setting-title">${setting.title}</div>
-                    <div class="setting-description">${setting.description}</div>
-                </div>
-                <div class="setting-control">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="${setting.id}" ${setting.enabled ? 'checked' : ''}>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-    
-    $('#securitySettings').html(html);
-}
-
-function loadIntegrations() {
-    // Mock integrations data
-    const integrations = [
-        {
-            id: 'gmail',
-            name: 'Gmail',
-            description: 'Sync emails and contacts with Gmail',
-            icon: 'fab fa-google',
-            iconColor: '#db4437',
-            status: 'connected'
-        },
-        {
-            id: 'slack',
-            name: 'Slack',
-            description: 'Send notifications to Slack channels',
-            icon: 'fab fa-slack',
-            iconColor: '#4a154b',
-            status: 'disconnected'
-        },
-        {
-            id: 'mailchimp',
-            name: 'Mailchimp',
-            description: 'Sync contacts with Mailchimp lists',
-            icon: 'fab fa-mailchimp',
-            iconColor: '#ffe01b',
-            status: 'disconnected'
-        },
-        {
-            id: 'zapier',
-            name: 'Zapier',
-            description: 'Connect with 3000+ apps via Zapier',
-            icon: 'fas fa-bolt',
-            iconColor: '#ff4a00',
-            status: 'disconnected'
-        }
-    ];
-    
-    let html = '';
-    integrations.forEach(integration => {
-        const statusClass = integration.status === 'connected' ? 'connected' : 'disconnected';
-        const buttonText = integration.status === 'connected' ? 'Disconnect' : 'Connect';
-        const buttonClass = integration.status === 'connected' ? 'btn-outline-danger' : 'btn-outline-primary';
-        
-        html += `
-            <div class="integration-item">
-                <div class="integration-icon" style="background: ${integration.iconColor}; color: white;">
-                    <i class="${integration.icon}"></i>
-                </div>
-                <div class="integration-info">
-                    <div class="integration-name">${integration.name}</div>
-                    <div class="integration-description">${integration.description}</div>
-                </div>
-                <div class="integration-status">
-                    <span class="status-badge ${statusClass}">
-                        ${integration.status === 'connected' ? 'Connected' : 'Disconnected'}
-                    </span>
-                    <button class="btn btn-sm ${buttonClass}" onclick="toggleIntegration('${integration.id}', '${integration.status}')">
-                        ${buttonText}
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-    
-    $('#integrationsList').html(html);
-}
-
-function loadBackupsList() {
-    // Mock backups data
-    const backups = [
-        {
-            id: 'backup_001',
-            name: 'Daily Backup - January 15, 2024',
-            date: '2024-01-15 02:00:00',
-            size: '45.2 MB',
-            type: 'automatic'
-        },
-        {
-            id: 'backup_002',
-            name: 'Manual Backup - January 14, 2024',
-            date: '2024-01-14 14:30:00',
-            size: '44.8 MB',
-            type: 'manual'
-        },
-        {
-            id: 'backup_003',
-            name: 'Daily Backup - January 14, 2024',
-            date: '2024-01-14 02:00:00',
-            size: '44.5 MB',
-            type: 'automatic'
-        }
-    ];
-    
-    let html = '';
-    backups.forEach(backup => {
-        html += `
-            <div class="backup-item">
-                <div class="backup-info">
-                    <div class="backup-name">
-                        <i class="fas fa-database me-2"></i>
-                        ${backup.name}
-                    </div>
-                    <div class="backup-date">
-                        ${formatDateTime(backup.date)} • ${backup.type}
-                    </div>
-                </div>
-                <div class="backup-size">${backup.size}</div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-primary" onclick="downloadBackup('${backup.id}')">
-                        <i class="fas fa-download"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-success" onclick="restoreBackup('${backup.id}')">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteBackup('${backup.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-    
-    $('#backupsList').html(html);
-}
-
-// Save Functions
-function saveGeneralSettings() {
-    const settings = {
-        companyName: $('#companyName').val(),
-        timeZone: $('#timeZone').val(),
-        dateFormat: $('#dateFormat').val(),
-        currency: $('#currency').val(),
-        language: $('#language').val()
-    };
-    
-    // Simulate API call
-    showAlert('General settings saved successfully!', 'success');
-    console.log('Saving general settings:', settings);
-}
-
-function saveAppearanceSettings() {
-    const selectedTheme = $('.theme-preview.selected').data('theme');
-    const settings = {
-        theme: selectedTheme,
-        primaryColor: $('#primaryColor').val(),
-        sidebarCollapsed: $('#sidebarCollapsed').is(':checked'),
-        animations: $('#animations').is(':checked')
-    };
-    
-    // Simulate API call
-    showAlert('Appearance settings saved successfully!', 'success');
-    console.log('Saving appearance settings:', settings);
-}
-
-function saveNotificationSettings() {
-    const settings = {};
-    $('#notificationSettings input[type="checkbox"]').each(function() {
-        settings[$(this).attr('id')] = $(this).is(':checked');
-    });
-    
-    // Simulate API call
-    showAlert('Notification settings saved successfully!', 'success');
-    console.log('Saving notification settings:', settings);
-}
-
-function saveSecuritySettings() {
-    const settings = {};
-    $('#securitySettings input[type="checkbox"]').each(function() {
-        settings[$(this).attr('id')] = $(this).is(':checked');
-    });
-    
-    // Simulate API call
-    showAlert('Security settings saved successfully!', 'success');
-    console.log('Saving security settings:', settings);
-}
-
-function saveApiSettings() {
-    const settings = {
-        apiAccess: $('#apiAccess').is(':checked'),
-        rateLimit: $('#rateLimit').val()
-    };
-    
-    // Simulate API call
-    showAlert('API settings saved successfully!', 'success');
-    console.log('Saving API settings:', settings);
-}
-
-function saveAdvancedSettings() {
-    const settings = {
-        debugMode: $('#debugMode').is(':checked'),
-        cacheDuration: $('#cacheDuration').val(),
-        sessionTimeout: $('#sessionTimeout').val()
-    };
-    
-    // Simulate API call
-    showAlert('Advanced settings saved successfully!', 'success');
-    console.log('Saving advanced settings:', settings);
-}
-
-// Theme Functions
-function applyTheme(theme) {
-    // Apply theme changes to the interface
-    console.log('Applying theme:', theme);
-    
-    // This would typically update CSS variables or classes
-    switch(theme) {
-        case 'dark':
-            // Apply dark theme
-            break;
-        case 'green':
-            // Apply green theme
-            break;
-        default:
-            // Apply default theme
-            break;
-    }
-}
-
-// Integration Functions
-function toggleIntegration(integrationId, currentStatus) {
-    const newStatus = currentStatus === 'connected' ? 'disconnected' : 'connected';
-    
-    // Simulate API call
-    console.log(`Toggling integration ${integrationId} to ${newStatus}`);
-    
-    // Reload integrations to reflect changes
-    setTimeout(() => {
-        loadIntegrations();
-        showAlert(`Integration ${newStatus} successfully!`, 'success');
-    }, 1000);
-}
-
-// Backup Functions
-function createBackup() {
-    showAlert('Creating backup...', 'info');
-    
-    // Simulate backup creation
-    setTimeout(() => {
-        showAlert('Backup created successfully!', 'success');
-        loadBackupsList();
-    }, 3000);
-}
-
-function uploadBackup() {
-    $('#backupFile').click();
-}
-
-function restoreFromBackup(file) {
-    if (!file) return;
-    
-    const fileName = file.name;
-    const fileSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
-    
-    if (confirm(`Are you sure you want to restore from backup "${fileName}" (${fileSize})? This will overwrite all current data.`)) {
-        showAlert('Restoring from backup...', 'info');
-        
-        // Simulate restore process
+    init() {
+        this.bindEvents();
+        this.loadSettings();
+        // Show settings content after initialization
         setTimeout(() => {
-            showAlert('Backup restored successfully!', 'success');
-        }, 5000);
-    }
-}
-
-function downloadBackup(backupId) {
-    showAlert('Downloading backup...', 'info');
-    
-    // Simulate download
-    setTimeout(() => {
-        showAlert('Backup downloaded successfully!', 'success');
-    }, 2000);
-    
-    console.log('Downloading backup:', backupId);
-}
-
-function restoreBackup(backupId) {
-    if (confirm('Are you sure you want to restore this backup? This will overwrite all current data.')) {
-        showAlert('Restoring backup...', 'info');
-        
-        // Simulate restore
-        setTimeout(() => {
-            showAlert('Backup restored successfully!', 'success');
-        }, 5000);
-    }
-    
-    console.log('Restoring backup:', backupId);
-}
-
-function deleteBackup(backupId) {
-    if (confirm('Are you sure you want to delete this backup? This action cannot be undone.')) {
-        // Simulate deletion
-        setTimeout(() => {
-            showAlert('Backup deleted successfully!', 'success');
-            loadBackupsList();
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('settingsContent').style.display = 'block';
         }, 1000);
     }
-    
-    console.log('Deleting backup:', backupId);
-}
 
-// API Functions
-function copyApiKey() {
-    const apiKey = $('#apiKey').text();
-    navigator.clipboard.writeText(apiKey).then(() => {
-        showAlert('API key copied to clipboard!', 'success');
-    }).catch(() => {
-        showAlert('Failed to copy API key', 'error');
-    });
-}
+    bindEvents() {
+        // Navigation events using Bootstrap tab structure
+        document.querySelectorAll('#settingsNav .nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                const target = link.getAttribute('data-bs-target');
+                if (target) {
+                    const sectionId = target.replace('#', '');
+                    this.currentSection = sectionId;
+                    this.loadSectionData(sectionId);
+                }
+            });
+        });
 
-function regenerateApiKey() {
-    if (confirm('Are you sure you want to regenerate the API key? This will invalidate the current key.')) {
-        // Generate new API key
-        const newApiKey = 'sk-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        $('#apiKey').text(newApiKey);
-        showAlert('API key regenerated successfully!', 'success');
+        // Form events
+        document.querySelectorAll('.settings-form').forEach(form => {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveSettings(form);
+            });
+        });
+
+        // Theme selector events
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                this.selectTheme(e.currentTarget.dataset.theme);
+            });
+        });
+
+        // Integration toggle events
+        document.querySelectorAll('.integration-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                this.toggleIntegration(e.currentTarget.dataset.integration);
+            });
+        });
+
+        // Backup actions
+        document.getElementById('createBackup')?.addEventListener('click', () => {
+            this.createBackup();
+        });
+
+        document.getElementById('restoreBackup')?.addEventListener('click', () => {
+            this.restoreBackup();
+        });
+
+        document.getElementById('downloadBackup')?.addEventListener('click', () => {
+            this.downloadBackup();
+        });
+
+        // API key generation
+        document.getElementById('generateApiKey')?.addEventListener('click', () => {
+            this.generateApiKey();
+        });
+
+        // Reset settings
+        document.getElementById('resetSettings')?.addEventListener('click', () => {
+            this.resetSettings();
+        });
+
+        // Export/Import settings
+        document.getElementById('exportSettings')?.addEventListener('click', () => {
+            this.exportSettings();
+        });
+
+        document.getElementById('importSettings')?.addEventListener('click', () => {
+            this.importSettings();
+        });
+
+        // Real-time form validation
+        document.querySelectorAll('input, select, textarea').forEach(input => {
+            input.addEventListener('input', (e) => {
+                this.validateField(e.target);
+            });
+        });
     }
-}
 
-// Advanced Functions
-function clearCache() {
-    if (confirm('Are you sure you want to clear the cache? This may temporarily slow down the system.')) {
-        showAlert('Clearing cache...', 'info');
+    showSection(sectionId) {
+        // Show loading state
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState) {
+            loadingState.style.display = 'block';
+        }
         
-        // Simulate cache clearing
         setTimeout(() => {
-            showAlert('Cache cleared successfully!', 'success');
-        }, 2000);
+            this.hideLoadingState(sectionId);
+        }, 500);
     }
-}
 
-function resetSettings() {
-    if (confirm('Are you sure you want to reset all settings to default? This action cannot be undone.')) {
-        showAlert('Resetting settings...', 'info');
+    hideLoadingState(sectionId) {
+        const loadingState = document.getElementById('loadingState');
+        if (loadingState) {
+            loadingState.style.display = 'none';
+        }
         
-        // Simulate settings reset
-        setTimeout(() => {
-            showAlert('Settings reset successfully!', 'success');
-            loadSettingsData();
-        }, 3000);
-    }
-}
-
-function deleteAllData() {
-    const confirmation = prompt('This will permanently delete ALL data. Type "DELETE ALL DATA" to confirm:');
-    
-    if (confirmation === 'DELETE ALL DATA') {
-        showAlert('Deleting all data...', 'warning');
+        // Update navigation using Bootstrap tab structure
+        document.querySelectorAll('#settingsNav .nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
         
-        // Simulate data deletion
+        const activeTab = document.getElementById(`${sectionId}-tab`);
+        if (activeTab) {
+            activeTab.classList.add('active');
+        }
+
+        // Show/hide sections using Bootstrap tab panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('show', 'active');
+        });
+        
+        const targetSection = document.getElementById(sectionId);
+        if (targetSection) {
+            targetSection.classList.add('show', 'active', 'fade-in');
+        }
+
+        this.currentSection = sectionId;
+        
+        // Load section data
+        this.loadSectionData(sectionId);
+        
+        // Update URL without reload
+        const url = new URL(window.location);
+        url.searchParams.set('section', sectionId);
+        window.history.pushState({}, '', url);
+    }
+
+    loadSectionData(sectionId) {
+        // Load specific data for each section if needed
+        switch (sectionId) {
+            case 'general':
+                // Load general settings data
+                break;
+            case 'appearance':
+                // Load appearance settings data
+                break;
+            case 'notifications':
+                // Load notification settings data
+                break;
+            case 'security':
+                // Load security settings data
+                break;
+            case 'integrations':
+                // Load integrations data
+                break;
+            case 'backup':
+                // Load backup data
+                break;
+            case 'api':
+                // Load API settings data
+                break;
+        }
+    }
+
+    async loadSettings() {
+        try {
+            const response = await fetch('/api/settings', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                this.settings = await response.json();
+                this.populateForm();
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            this.showToast('Erro ao carregar configurações', 'error');
+        }
+    }
+
+    populateForm() {
+        // Populate general settings
+        if (this.settings.company_name) {
+            document.getElementById('companyName').value = this.settings.company_name;
+        }
+        if (this.settings.timezone) {
+            document.getElementById('timezone').value = this.settings.timezone;
+        }
+        if (this.settings.date_format) {
+            document.getElementById('dateFormat').value = this.settings.date_format;
+        }
+        if (this.settings.currency) {
+            document.getElementById('currency').value = this.settings.currency;
+        }
+        if (this.settings.language) {
+            document.getElementById('language').value = this.settings.language;
+        }
+
+        // Populate appearance settings
+        if (this.settings.theme) {
+            this.selectTheme(this.settings.theme);
+        }
+        if (this.settings.primary_color) {
+            document.getElementById('primaryColor').value = this.settings.primary_color;
+        }
+        if (this.settings.sidebar_collapsed !== undefined) {
+            document.getElementById('sidebarCollapsed').checked = this.settings.sidebar_collapsed;
+        }
+        if (this.settings.dark_mode !== undefined) {
+            document.getElementById('darkMode').checked = this.settings.dark_mode;
+        }
+
+        // Populate notification settings
+        if (this.settings.email_notifications !== undefined) {
+            document.getElementById('emailNotifications').checked = this.settings.email_notifications;
+        }
+        if (this.settings.push_notifications !== undefined) {
+            document.getElementById('pushNotifications').checked = this.settings.push_notifications;
+        }
+        if (this.settings.sms_notifications !== undefined) {
+            document.getElementById('smsNotifications').checked = this.settings.sms_notifications;
+        }
+
+        // Populate security settings
+        if (this.settings.two_factor !== undefined) {
+            document.getElementById('twoFactor').checked = this.settings.two_factor;
+        }
+        if (this.settings.session_timeout) {
+            document.getElementById('sessionTimeout').value = this.settings.session_timeout;
+        }
+        if (this.settings.password_expiry) {
+            document.getElementById('passwordExpiry').value = this.settings.password_expiry;
+        }
+    }
+
+    async saveSettings(form) {
+        const formData = new FormData(form);
+        const settings = {};
+        
+        for (let [key, value] of formData.entries()) {
+            settings[key] = value;
+        }
+
+        // Handle checkboxes
+        form.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            settings[checkbox.name] = checkbox.checked;
+        });
+
+        try {
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(settings)
+            });
+
+            if (response.ok) {
+                this.settings = { ...this.settings, ...settings };
+                this.showToast('Configurações salvas com sucesso!', 'success');
+                
+                // Apply theme changes immediately
+                if (settings.theme) {
+                    this.applyTheme(settings.theme);
+                }
+            } else {
+                throw new Error('Failed to save settings');
+            }
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            this.showToast('Erro ao salvar configurações', 'error');
+        }
+    }
+
+    selectTheme(theme) {
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.classList.remove('active');
+        });
+        
+        const selectedOption = document.querySelector(`[data-theme="${theme}"]`);
+        if (selectedOption) {
+            selectedOption.classList.add('active');
+        }
+        
+        this.applyTheme(theme);
+    }
+
+    applyTheme(theme) {
+        document.body.className = document.body.className.replace(/theme-\w+/g, '');
+        document.body.classList.add(`theme-${theme}`);
+        
+        // Update CSS variables based on theme
+        const root = document.documentElement;
+        switch (theme) {
+            case 'blue':
+                root.style.setProperty('--primary-color', '#667eea');
+                root.style.setProperty('--secondary-color', '#764ba2');
+                break;
+            case 'green':
+                root.style.setProperty('--primary-color', '#56ab2f');
+                root.style.setProperty('--secondary-color', '#a8e6cf');
+                break;
+            case 'purple':
+                root.style.setProperty('--primary-color', '#8360c3');
+                root.style.setProperty('--secondary-color', '#2ebf91');
+                break;
+            case 'orange':
+                root.style.setProperty('--primary-color', '#f093fb');
+                root.style.setProperty('--secondary-color', '#f5576c');
+                break;
+        }
+    }
+
+    async toggleIntegration(integration) {
+        try {
+            const response = await fetch(`/api/integrations/${integration}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.showToast(`Integração ${result.enabled ? 'ativada' : 'desativada'} com sucesso!`, 'success');
+                
+                // Update UI
+                const button = document.querySelector(`[data-integration="${integration}"]`);
+                if (button) {
+                    button.textContent = result.enabled ? 'Desconectar' : 'Conectar';
+                    button.className = result.enabled ? 'btn btn-outline-danger btn-sm' : 'btn btn-outline-primary btn-sm';
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling integration:', error);
+            this.showToast('Erro ao alterar integração', 'error');
+        }
+    }
+
+    async createBackup() {
+        try {
+            const response = await fetch('/api/backup/create', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.showToast('Backup criado com sucesso!', 'success');
+            }
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            this.showToast('Erro ao criar backup', 'error');
+        }
+    }
+
+    async restoreBackup() {
+        if (!confirm('Tem certeza que deseja restaurar o backup? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/backup/restore', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                this.showToast('Backup restaurado com sucesso!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error restoring backup:', error);
+            this.showToast('Erro ao restaurar backup', 'error');
+        }
+    }
+
+    async downloadBackup() {
+        try {
+            const response = await fetch('/api/backup/download', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup-${new Date().toISOString().split('T')[0]}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                this.showToast('Backup baixado com sucesso!', 'success');
+            }
+        } catch (error) {
+            console.error('Error downloading backup:', error);
+            this.showToast('Erro ao baixar backup', 'error');
+        }
+    }
+
+    async generateApiKey() {
+        try {
+            const response = await fetch('/api/auth/generate-key', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                document.getElementById('apiKey').value = result.api_key;
+                this.showToast('Nova chave API gerada!', 'success');
+            }
+        } catch (error) {
+            console.error('Error generating API key:', error);
+            this.showToast('Erro ao gerar chave API', 'error');
+        }
+    }
+
+    async resetSettings() {
+        if (!confirm('Tem certeza que deseja resetar todas as configurações? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/settings/reset', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (response.ok) {
+                this.showToast('Configurações resetadas com sucesso!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Error resetting settings:', error);
+            this.showToast('Erro ao resetar configurações', 'error');
+        }
+    }
+
+    exportSettings() {
+        const dataStr = JSON.stringify(this.settings, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `settings-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(url);
+        this.showToast('Configurações exportadas com sucesso!', 'success');
+    }
+
+    importSettings() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const settings = JSON.parse(e.target.result);
+                        this.settings = settings;
+                        this.populateForm();
+                        this.saveSettings(document.querySelector('.settings-form'));
+                        this.showToast('Configurações importadas com sucesso!', 'success');
+                    } catch (error) {
+                        this.showToast('Erro ao importar configurações', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        };
+        
+        input.click();
+    }
+
+    validateField(field) {
+        const value = field.value.trim();
+        let isValid = true;
+        let message = '';
+
+        // Remove existing validation classes
+        field.classList.remove('is-valid', 'is-invalid');
+        
+        // Validation rules
+        switch (field.type) {
+            case 'email':
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                isValid = emailRegex.test(value);
+                message = 'Por favor, insira um email válido';
+                break;
+            case 'url':
+                try {
+                    new URL(value);
+                } catch {
+                    isValid = false;
+                    message = 'Por favor, insira uma URL válida';
+                }
+                break;
+            case 'number':
+                isValid = !isNaN(value) && value !== '';
+                message = 'Por favor, insira um número válido';
+                break;
+        }
+
+        // Required field validation
+        if (field.hasAttribute('required') && value === '') {
+            isValid = false;
+            message = 'Este campo é obrigatório';
+        }
+
+        // Apply validation classes
+        if (value !== '') {
+            field.classList.add(isValid ? 'is-valid' : 'is-invalid');
+            
+            // Show/hide feedback
+            let feedback = field.parentNode.querySelector('.invalid-feedback');
+            if (!isValid && !feedback) {
+                feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback';
+                feedback.textContent = message;
+                field.parentNode.appendChild(feedback);
+            } else if (isValid && feedback) {
+                feedback.remove();
+            } else if (!isValid && feedback) {
+                feedback.textContent = message;
+            }
+        }
+
+        return isValid;
+    }
+
+    showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed top-0 end-0 p-3';
+            container.style.zIndex = '9999';
+            document.body.appendChild(container);
+        }
+
+        // Create toast
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'primary'} border-0`;
+        toast.setAttribute('role', 'alert');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        container.appendChild(toast);
+
+        // Show toast
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        // Remove toast after it's hidden
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    }
+}
+
+// Initialize settings manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new SettingsManager();
+    
+    // Handle URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const section = urlParams.get('section');
+    if (section) {
         setTimeout(() => {
-            showAlert('All data deleted successfully!', 'success');
-            // Redirect to setup page or login
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 2000);
-        }, 5000);
-    } else if (confirmation !== null) {
-        showAlert('Confirmation text did not match. Data deletion cancelled.', 'error');
+            document.querySelector(`[data-section="${section}"]`)?.click();
+        }, 100);
     }
-}
+});
 
-// Utility Functions
-function showLoading() {
-    $('#loadingState').show();
-    $('#settingsContent').hide();
-}
-
-function hideLoading() {
-    $('#loadingState').hide();
-    $('#settingsContent').show();
-}
-
-function showAlert(message, type = 'info') {
-    // Create alert element
-    const alertClass = {
-        'success': 'alert-success',
-        'error': 'alert-danger',
-        'warning': 'alert-warning',
-        'info': 'alert-info'
-    }[type] || 'alert-info';
-    
-    const alertHtml = `
-        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    $('body').append(alertHtml);
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        $('.alert').alert('close');
-    }, 5000);
-}
-
-function formatDateTime(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('authToken');
-        window.location.href = 'login.html';
-    }
-}
-
-// Export functions for global access
-window.saveGeneralSettings = saveGeneralSettings;
-window.saveAppearanceSettings = saveAppearanceSettings;
-window.saveNotificationSettings = saveNotificationSettings;
-window.saveSecuritySettings = saveSecuritySettings;
-window.saveApiSettings = saveApiSettings;
-window.saveAdvancedSettings = saveAdvancedSettings;
-window.toggleIntegration = toggleIntegration;
-window.createBackup = createBackup;
-window.uploadBackup = uploadBackup;
-window.downloadBackup = downloadBackup;
-window.restoreBackup = restoreBackup;
-window.deleteBackup = deleteBackup;
-window.copyApiKey = copyApiKey;
-window.regenerateApiKey = regenerateApiKey;
-window.clearCache = clearCache;
-window.resetSettings = resetSettings;
-window.deleteAllData = deleteAllData;
+// Handle browser back/forward buttons
+window.addEventListener('popstate', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const section = urlParams.get('section') || 'general';
+    document.querySelector(`[data-section="${section}"]`)?.click();
+});

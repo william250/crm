@@ -17,7 +17,19 @@ class Appointment {
      */
     public function getAll($filters = []) {
         try {
-            $sql = "SELECT a.*, c.name as client_name, c.email as client_email, c.phone as client_phone 
+            $sql = "SELECT a.id, a.user_id, a.client_id, a.title, 
+                           DATE(a.start_time) as date, 
+                           TIME(a.start_time) as start_time, 
+                           TIME(a.end_time) as end_time, 
+                           a.start_time as datetime_start, 
+                           a.end_time as datetime_end, 
+                           a.status, a.fee, 
+                           'consultation' as type, 
+                           '' as notes, 
+                           '' as location, 
+                           c.name as client_name, 
+                           c.email as client_email, 
+                           c.phone as client_phone 
                     FROM appointments a 
                     LEFT JOIN clients c ON a.client_id = c.id 
                     WHERE 1=1";
@@ -26,12 +38,12 @@ class Appointment {
             
             // Apply filters
             if (!empty($filters['date_from'])) {
-                $sql .= " AND a.date >= ?";
+                $sql .= " AND DATE(a.start_time) >= ?";
                 $params[] = $filters['date_from'];
             }
             
             if (!empty($filters['date_to'])) {
-                $sql .= " AND a.date <= ?";
+                $sql .= " AND DATE(a.start_time) <= ?";
                 $params[] = $filters['date_to'];
             }
             
@@ -45,22 +57,16 @@ class Appointment {
                 $params[] = $filters['client_id'];
             }
             
-            if (!empty($filters['type'])) {
-                $sql .= " AND a.type = ?";
-                $params[] = $filters['type'];
-            }
-            
             // Add search functionality
             if (!empty($filters['search'])) {
-                $sql .= " AND (c.name LIKE ? OR a.notes LIKE ? OR a.location LIKE ?)";
+                $sql .= " AND (c.name LIKE ? OR a.title LIKE ?)";
                 $searchTerm = '%' . $filters['search'] . '%';
-                $params[] = $searchTerm;
                 $params[] = $searchTerm;
                 $params[] = $searchTerm;
             }
             
             // Add ordering
-            $sql .= " ORDER BY a.date ASC, a.start_time ASC";
+            $sql .= " ORDER BY a.start_time ASC";
             
             // Add pagination
             if (!empty($filters['limit'])) {
@@ -94,12 +100,12 @@ class Appointment {
             
             // Apply same filters as getAll method
             if (!empty($filters['date_from'])) {
-                $sql .= " AND a.date >= ?";
+                $sql .= " AND DATE(a.start_time) >= ?";
                 $params[] = $filters['date_from'];
             }
             
             if (!empty($filters['date_to'])) {
-                $sql .= " AND a.date <= ?";
+                $sql .= " AND DATE(a.start_time) <= ?";
                 $params[] = $filters['date_to'];
             }
             
@@ -162,20 +168,25 @@ class Appointment {
      */
     public function create($data) {
         try {
-            $sql = "INSERT INTO appointments (client_id, type, date, start_time, end_time, status, location, notes, reminder, created_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+            // Convert date and time to datetime format
+            $startDateTime = $data['date'] . ' ' . $data['start_time'] . ':00';
+            $endDateTime = $data['date'] . ' ' . $data['end_time'] . ':00';
+            
+            // Create title from type and client info if not provided
+            $title = $data['title'] ?? ucfirst($data['type']) . ' appointment';
+            
+            $sql = "INSERT INTO appointments (user_id, client_id, title, start_time, end_time, status, fee, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
             
             $stmt = $this->db->prepare($sql);
             $result = $stmt->execute([
+                $data['user_id'] ?? 1, // Default to user 1 if not provided
                 $data['client_id'],
-                $data['type'],
-                $data['date'],
-                $data['start_time'],
-                $data['end_time'],
+                $title,
+                $startDateTime,
+                $endDateTime,
                 $data['status'] ?? 'scheduled',
-                $data['location'] ?? null,
-                $data['notes'] ?? null,
-                $data['reminder'] ?? false
+                $data['fee'] ?? 0.00
             ]);
             
             if ($result) {
@@ -194,22 +205,27 @@ class Appointment {
      */
     public function update($id, $data) {
         try {
+            // Convert date and time to datetime format
+            $startDateTime = $data['date'] . ' ' . $data['start_time'] . ':00';
+            $endDateTime = $data['date'] . ' ' . $data['end_time'] . ':00';
+            
+            // Create title from type and client info if not provided
+            $title = $data['title'] ?? ucfirst($data['type']) . ' appointment';
+            
             $sql = "UPDATE appointments SET 
-                    client_id = ?, type = ?, date = ?, start_time = ?, end_time = ?, 
-                    status = ?, location = ?, notes = ?, reminder = ?, updated_at = NOW() 
+                    user_id = ?, client_id = ?, title = ?, start_time = ?, end_time = ?, 
+                    status = ?, fee = ? 
                     WHERE id = ?";
             
             $stmt = $this->db->prepare($sql);
             return $stmt->execute([
+                $data['user_id'] ?? 1,
                 $data['client_id'],
-                $data['type'],
-                $data['date'],
-                $data['start_time'],
-                $data['end_time'],
+                $title,
+                $startDateTime,
+                $endDateTime,
                 $data['status'],
-                $data['location'],
-                $data['notes'],
-                $data['reminder'],
+                $data['fee'] ?? 0.00,
                 $id
             ]);
         } catch (PDOException $e) {
@@ -343,16 +359,20 @@ class Appointment {
      */
     public function checkConflict($date, $startTime, $endTime, $excludeId = null) {
         try {
+            // Convert to datetime format
+            $startDateTime = $date . ' ' . $startTime . ':00';
+            $endDateTime = $date . ' ' . $endTime . ':00';
+            
             $sql = "SELECT COUNT(*) as count FROM appointments 
-                    WHERE date = ? 
-                    AND status NOT IN ('cancelled', 'no_show') 
+                    WHERE DATE(start_time) = ? 
+                    AND status NOT IN ('cancelled') 
                     AND (
                         (start_time <= ? AND end_time > ?) OR 
                         (start_time < ? AND end_time >= ?) OR 
                         (start_time >= ? AND end_time <= ?)
                     )";
             
-            $params = [$date, $startTime, $startTime, $endTime, $endTime, $startTime, $endTime];
+            $params = [$date, $startDateTime, $startDateTime, $endDateTime, $endDateTime, $startDateTime, $endDateTime];
             
             if ($excludeId) {
                 $sql .= " AND id != ?";

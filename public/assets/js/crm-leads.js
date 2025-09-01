@@ -20,7 +20,7 @@ function initializePage() {
     // Check authentication
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
     
@@ -32,7 +32,7 @@ function initializePage() {
 }
 
 function loadUserInfo() {
-    const userData = JSON.parse(localStorage.getItem('userData') || sessionStorage.getItem('userData') || '{}');
+    const userData = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}');
     if (userData.name) {
         $('#userName').text(userData.name);
     }
@@ -51,9 +51,9 @@ function loadLeads(page = 1) {
     
     axios.get('/api/crm/leads', { params })
         .then(response => {
-            const data = response.data.data;
-            displayLeads(data.leads || []);
-            updatePagination(data.pagination || {});
+            const data = response.data.data || [];
+            displayLeads(data);
+            updatePagination({ current_page: 1, total_pages: 1, total: data.length });
             hideLoading();
         })
         .catch(error => {
@@ -431,7 +431,7 @@ function logout() {
     sessionStorage.removeItem('userData');
     
     // Redirect to login
-    window.location.href = 'login.html';
+        window.location.href = 'login.php';
 }
 
 // Utility functions
@@ -459,7 +459,18 @@ function capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1).replace('_', ' ');
 }
 
-// Error handling for axios
+// Axios interceptors for authentication
+axios.interceptors.request.use(
+    config => {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    error => Promise.reject(error)
+);
+
 axios.interceptors.response.use(
     response => response,
     error => {

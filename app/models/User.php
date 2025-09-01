@@ -17,7 +17,7 @@ class User
     public function findByEmail(string $email): ?array
     {
         try {
-            $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ? AND status = 'active'");
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ?");
             $stmt->execute([$email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -31,7 +31,7 @@ class User
     public function findById(int $id): ?array
     {
         try {
-            $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ? AND status = 'active'");
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
             $stmt->execute([$id]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
@@ -46,8 +46,8 @@ class User
     {
         try {
             $stmt = $this->db->prepare("
-                INSERT INTO users (name, email, password, role, phone, status, created_at) 
-                VALUES (?, ?, ?, ?, ?, 'active', NOW())
+                INSERT INTO users (name, email, password_hash, role, created_at) 
+                VALUES (?, ?, ?, ?, NOW())
             ");
             
             $hashedPassword = password_hash($userData['password'], PASSWORD_DEFAULT);
@@ -56,8 +56,7 @@ class User
                 $userData['name'],
                 $userData['email'],
                 $hashedPassword,
-                $userData['role'] ?? 'salesperson',
-                $userData['phone'] ?? null
+                $userData['role'] ?? 'basic'
             ]);
             
             return $this->db->lastInsertId();
@@ -74,7 +73,7 @@ class User
             $values = [];
             
             foreach ($userData as $field => $value) {
-                if (in_array($field, ['name', 'email', 'phone', 'role', 'status'])) {
+                if (in_array($field, ['name', 'email', 'role'])) {
                     $fields[] = "$field = ?";
                     $values[] = $value;
                 }
@@ -99,7 +98,7 @@ class User
     {
         try {
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            $stmt = $this->db->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?");
+            $stmt = $this->db->prepare("UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?");
             return $stmt->execute([$hashedPassword, $id]);
         } catch (PDOException $e) {
             error_log("Error updating password: " . $e->getMessage());
@@ -115,7 +114,7 @@ class User
     public function updateLastLogin(int $id): bool
     {
         try {
-            $stmt = $this->db->prepare("UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = ?");
+            $stmt = $this->db->prepare("UPDATE users SET updated_at = NOW() WHERE id = ?");
             return $stmt->execute([$id]);
         } catch (PDOException $e) {
             error_log("Error updating last login: " . $e->getMessage());
@@ -126,7 +125,7 @@ class User
     public function getAllUsers(): array
     {
         try {
-            $stmt = $this->db->prepare("SELECT id, name, email, role, phone, status, created_at FROM users ORDER BY created_at DESC");
+            $stmt = $this->db->prepare("SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC");
             $stmt->execute();
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -138,7 +137,7 @@ class User
     public function getUsersByRole(string $role): array
     {
         try {
-            $stmt = $this->db->prepare("SELECT id, name, email, phone FROM users WHERE role = ? AND status = 'active' ORDER BY name");
+            $stmt = $this->db->prepare("SELECT id, name, email FROM users WHERE role = ? ORDER BY name");
             $stmt->execute([$role]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {

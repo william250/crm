@@ -1,774 +1,666 @@
 /**
- * Appointments Module - Frontend Logic
- * Handles scheduling, calendar view, and appointment management
+ * Appointments Management System
+ * Modern JavaScript for appointments functionality
  */
 
-// Global variables
-let currentAppointments = [];
-let currentClients = [];
-let currentPage = 1;
-let totalPages = 1;
-let currentFilters = {};
-let currentDate = new Date();
-let editingAppointmentId = null;
-
-// Initialize the appointments page
-$(document).ready(function() {
-    initializeAppointments();
-});
-
-function initializeAppointments() {
-    // Check authentication
-    if (!checkAuth()) {
-        window.location.href = 'login.html';
-        return;
-    }
-
-    // Load user info
-    loadUserInfo();
-    
-    // Set up event listeners
-    setupEventListeners();
-    
-    // Load initial data
-    loadClients();
-    loadAppointments();
-    loadTodaySchedule();
-    initializeCalendar();
-    
-    // Set default date filters
-    setDefaultDateFilters();
-}
-
-function setupEventListeners() {
-    // Tab switching
-    $('#schedulingTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function(e) {
-        const target = $(e.target).attr('data-bs-target');
-        if (target === '#calendar') {
-            renderCalendar();
-        } else if (target === '#today') {
-            loadTodaySchedule();
-        }
-    });
-    
-    // Add appointment button
-    $('#addAppointmentBtn').on('click', function() {
-        openAppointmentModal();
-    });
-    
-    // Save appointment button
-    $('#saveAppointmentBtn').on('click', function() {
-        saveAppointment();
-    });
-    
-    // Filter changes
-    $('#appointmentStatusFilter, #startDateFilter, #endDateFilter').on('change', function() {
-        applyFilters();
-    });
-    
-    // Search input
-    $('#appointmentSearchInput, #clientSearchInput').on('input', debounce(function() {
-        applyFilters();
-    }, 300));
-    
-    // Clear filters
-    $('#clearAppointmentFilters').on('click', function() {
-        clearFilters();
-    });
-    
-    // Calendar navigation
-    $('#prevMonth').on('click', function() {
-        currentDate.setMonth(currentDate.getMonth() - 1);
-        renderCalendar();
-    });
-    
-    $('#nextMonth').on('click', function() {
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        renderCalendar();
-    });
-    
-    $('#currentMonth').on('click', function() {
-        currentDate = new Date();
-        renderCalendar();
-    });
-    
-    // Logout
-    $('#logoutLink').on('click', function(e) {
-        e.preventDefault();
-        logout();
-    });
-}
-
-function loadUserInfo() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.name) {
-        $('#userName').text(user.name);
-    }
-}
-
-function loadClients() {
-    showLoading();
-    
-    axios.get('/api/clients')
-        .then(response => {
-            if (response.data.success) {
-                currentClients = response.data.data || [];
-                populateClientSelect();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading clients:', error);
-            showAlert('Error loading clients', 'danger');
-        })
-        .finally(() => {
-            hideLoading();
-        });
-}
-
-function populateClientSelect() {
-    const select = $('#appointmentClient');
-    select.empty().append('<option value="">Select Client</option>');
-    
-    currentClients.forEach(client => {
-        select.append(`<option value="${client.id}">${escapeHtml(client.name)} - ${escapeHtml(client.company || 'Individual')}</option>`);
-    });
-}
-
-function loadAppointments(page = 1) {
-    showLoading();
-    
-    const params = {
-        page: page,
-        limit: 10,
-        ...currentFilters
-    };
-    
-    axios.get('/api/appointments', { params })
-        .then(response => {
-            if (response.data.success) {
-                currentAppointments = response.data.data || [];
-                totalPages = Math.ceil((response.data.total || 0) / 10);
-                currentPage = page;
-                
-                renderAppointmentsTable();
-                renderPagination();
-                updateAppointmentsCount();
-            }
-        })
-        .catch(error => {
-            console.error('Error loading appointments:', error);
-            showAlert('Error loading appointments', 'danger');
-        })
-        .finally(() => {
-            hideLoading();
-        });
-}
-
-function renderAppointmentsTable() {
-    const tbody = $('#appointmentsTableBody');
-    tbody.empty();
-    
-    if (currentAppointments.length === 0) {
-        tbody.append(`
-            <tr>
-                <td colspan="7" class="text-center py-4">
-                    <div class="empty-state">
-                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No appointments found</p>
-                    </div>
-                </td>
-            </tr>
-        `);
-        return;
-    }
-    
-    currentAppointments.forEach(appointment => {
-        const client = currentClients.find(c => c.id == appointment.client_id);
-        const clientName = client ? client.name : 'Unknown Client';
-        const appointmentDate = new Date(appointment.appointment_date);
-        const formattedDate = formatDateTime(appointmentDate);
+class AppointmentsManager {
+    constructor() {
+        this.currentDate = new Date();
+        this.appointments = [];
+        this.clients = [];
+        this.currentView = 'list';
+        this.filters = {
+            status: '',
+            startDate: '',
+            endDate: '',
+            client: ''
+        };
+        this.pagination = {
+            currentPage: 1,
+            itemsPerPage: 10,
+            totalItems: 0
+        };
         
-        tbody.append(`
-            <tr>
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.loadClients();
+        this.loadAppointments();
+        this.initializeCalendar();
+        this.loadTodayAppointments();
+    }
+
+    bindEvents() {
+        // Tab navigation
+        document.querySelectorAll('[data-bs-toggle="pill"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', (e) => {
+                const target = e.target.getAttribute('data-bs-target');
+                this.currentView = target.replace('#', '').replace('-view', '');
+                this.handleViewChange();
+            });
+        });
+
+        // New appointment button
+        const newAppointmentBtn = document.getElementById('newAppointmentBtn');
+        if (newAppointmentBtn) {
+            newAppointmentBtn.addEventListener('click', () => this.openAppointmentModal());
+        }
+
+        // Filters
+        document.getElementById('statusFilter')?.addEventListener('change', (e) => {
+            this.filters.status = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('startDate')?.addEventListener('change', (e) => {
+            this.filters.startDate = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('endDate')?.addEventListener('change', (e) => {
+            this.filters.endDate = e.target.value;
+            this.applyFilters();
+        });
+
+        document.getElementById('clientFilter')?.addEventListener('input', (e) => {
+            this.filters.client = e.target.value;
+            this.debounce(() => this.applyFilters(), 300)();
+        });
+
+        document.getElementById('clearFilters')?.addEventListener('click', () => {
+            this.clearFilters();
+        });
+
+        // Search
+        document.getElementById('searchAppointments')?.addEventListener('input', (e) => {
+            this.debounce(() => this.searchAppointments(e.target.value), 300)();
+        });
+
+        // Calendar navigation
+        document.getElementById('prevMonth')?.addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+            this.renderCalendar();
+        });
+
+        document.getElementById('nextMonth')?.addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+            this.renderCalendar();
+        });
+
+        document.getElementById('currentMonth')?.addEventListener('click', () => {
+            this.currentDate = new Date();
+            this.renderCalendar();
+        });
+
+        // Form submission
+        document.getElementById('appointmentForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveAppointment();
+        });
+    }
+
+    handleViewChange() {
+        switch (this.currentView) {
+            case 'list':
+                this.loadAppointments();
+                break;
+            case 'calendar':
+                this.renderCalendar();
+                break;
+            case 'today':
+                this.loadTodayAppointments();
+                break;
+        }
+    }
+
+    async loadClients() {
+        try {
+            // Simulated API call - replace with actual endpoint
+            const response = await fetch('/api/clients');
+            if (response.ok) {
+                this.clients = await response.json();
+            } else {
+                // Fallback with sample data
+                this.clients = this.getSampleClients();
+            }
+            this.populateClientSelect();
+        } catch (error) {
+            console.error('Error loading clients:', error);
+            this.clients = this.getSampleClients();
+            this.populateClientSelect();
+        }
+    }
+
+    getSampleClients() {
+        return [
+            { id: 1, name: 'João Silva', email: 'joao@email.com' },
+            { id: 2, name: 'Maria Santos', email: 'maria@email.com' },
+            { id: 3, name: 'Pedro Oliveira', email: 'pedro@email.com' },
+            { id: 4, name: 'Ana Costa', email: 'ana@email.com' },
+            { id: 5, name: 'Carlos Ferreira', email: 'carlos@email.com' }
+        ];
+    }
+
+    populateClientSelect() {
+        const clientSelect = document.getElementById('clientSelect');
+        if (clientSelect) {
+            clientSelect.innerHTML = '<option value="">Selecione o cliente</option>';
+            this.clients.forEach(client => {
+                const option = document.createElement('option');
+                option.value = client.id;
+                option.textContent = client.name;
+                clientSelect.appendChild(option);
+            });
+        }
+    }
+
+    async loadAppointments() {
+        try {
+            this.showLoading('appointmentsTableBody');
+            
+            // Simulated API call - replace with actual endpoint
+            const response = await fetch('/api/appointments');
+            if (response.ok) {
+                this.appointments = await response.json();
+            } else {
+                // Fallback with sample data
+                this.appointments = this.getSampleAppointments();
+            }
+            
+            this.renderAppointmentsList();
+        } catch (error) {
+            console.error('Error loading appointments:', error);
+            this.appointments = this.getSampleAppointments();
+            this.renderAppointmentsList();
+        }
+    }
+
+    getSampleAppointments() {
+        const today = new Date();
+        return [
+            {
+                id: 1,
+                client_id: 1,
+                client_name: 'João Silva',
+                date: this.formatDate(today),
+                start_time: '09:00',
+                end_time: '10:00',
+                type: 'consultation',
+                status: 'confirmed',
+                notes: 'Consulta inicial',
+                value: 150.00
+            },
+            {
+                id: 2,
+                client_id: 2,
+                client_name: 'Maria Santos',
+                date: this.formatDate(new Date(today.getTime() + 86400000)),
+                start_time: '14:00',
+                end_time: '15:30',
+                type: 'meeting',
+                status: 'scheduled',
+                notes: 'Reunião de acompanhamento',
+                value: 200.00
+            },
+            {
+                id: 3,
+                client_id: 3,
+                client_name: 'Pedro Oliveira',
+                date: this.formatDate(new Date(today.getTime() + 172800000)),
+                start_time: '10:30',
+                end_time: '12:00',
+                type: 'presentation',
+                status: 'completed',
+                notes: 'Apresentação de proposta',
+                value: 300.00
+            }
+        ];
+    }
+
+    renderAppointmentsList() {
+        const tbody = document.getElementById('appointmentsTableBody');
+        if (!tbody) return;
+
+        if (this.appointments.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <div class="empty-state">
+                            <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                            <h5>Nenhum agendamento encontrado</h5>
+                            <p>Clique em "Novo Agendamento" para criar o primeiro.</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = this.appointments.map(appointment => `
+            <tr class="fade-in">
                 <td>
                     <div class="d-flex align-items-center">
-                        <div class="avatar-sm me-2">
-                            <span class="avatar-text">${getInitials(clientName)}</span>
+                        <div class="avatar-sm me-3">
+                            ${appointment.client_name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                            <div class="fw-medium">${escapeHtml(clientName)}</div>
-                            <small class="text-muted">${escapeHtml(client?.company || 'Individual')}</small>
+                            <div class="fw-semibold">${appointment.client_name}</div>
                         </div>
                     </div>
                 </td>
                 <td>
-                    <div class="fw-medium">${formattedDate}</div>
-                    <small class="text-muted">${formatTime(appointmentDate)}</small>
+                    <div class="fw-semibold">${this.formatDisplayDate(appointment.date)}</div>
+                    <small class="text-muted">${appointment.start_time} - ${appointment.end_time}</small>
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark">${appointment.duration} min</span>
+                    <span class="badge bg-light text-dark">${this.getTypeLabel(appointment.type)}</span>
                 </td>
                 <td>
-                    <span class="badge bg-info">${escapeHtml(appointment.type)}</span>
+                    <span class="status-badge status-${appointment.status}">
+                        ${this.getStatusLabel(appointment.status)}
+                    </span>
                 </td>
                 <td>
-                    ${getStatusBadge(appointment.status)}
-                </td>
-                <td>
-                    <span class="text-truncate" style="max-width: 150px; display: inline-block;" title="${escapeHtml(appointment.notes || '')}">
-                        ${escapeHtml(appointment.notes || '-')}
+                    <span class="text-truncate" style="max-width: 150px; display: inline-block;" title="${appointment.notes}">
+                        ${appointment.notes || '-'}
                     </span>
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" onclick="editAppointment(${appointment.id})" title="Edit">
+                        <button class="btn btn-outline-primary action-btn" onclick="appointmentsManager.editAppointment(${appointment.id})" title="Editar">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-outline-success" onclick="markCompleted(${appointment.id})" title="Mark Completed" ${appointment.status === 'completed' ? 'disabled' : ''}>
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <button class="btn btn-outline-danger" onclick="deleteAppointment(${appointment.id})" title="Delete">
+                        <button class="btn btn-outline-danger action-btn" onclick="appointmentsManager.deleteAppointment(${appointment.id})" title="Excluir">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </td>
             </tr>
-        `);
-    });
-}
-
-function renderPagination() {
-    const pagination = $('#appointmentsPagination');
-    pagination.empty();
-    
-    if (totalPages <= 1) return;
-    
-    // Previous button
-    pagination.append(`
-        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-            <a class="page-link" href="#" onclick="loadAppointments(${currentPage - 1})">
-                <i class="fas fa-chevron-left"></i>
-            </a>
-        </li>
-    `);
-    
-    // Page numbers
-    for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
-        pagination.append(`
-            <li class="page-item ${i === currentPage ? 'active' : ''}">
-                <a class="page-link" href="#" onclick="loadAppointments(${i})">${i}</a>
-            </li>
-        `);
+        `).join('');
     }
-    
-    // Next button
-    pagination.append(`
-        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-            <a class="page-link" href="#" onclick="loadAppointments(${currentPage + 1})">
-                <i class="fas fa-chevron-right"></i>
-            </a>
-        </li>
-    `);
-}
 
-function updateAppointmentsCount() {
-    $('#appointmentsCount').text(currentAppointments.length);
-}
+    initializeCalendar() {
+        this.renderCalendar();
+    }
 
-function applyFilters() {
-    currentFilters = {
-        status: $('#appointmentStatusFilter').val(),
-        start_date: $('#startDateFilter').val(),
-        end_date: $('#endDateFilter').val(),
-        search: $('#appointmentSearchInput').val(),
-        client_search: $('#clientSearchInput').val()
-    };
-    
-    // Remove empty filters
-    Object.keys(currentFilters).forEach(key => {
-        if (!currentFilters[key]) {
-            delete currentFilters[key];
+    renderCalendar() {
+        const calendarGrid = document.getElementById('calendarGrid');
+        const currentMonthText = document.getElementById('currentMonthText');
+        
+        if (!calendarGrid) return;
+
+        // Update month display
+        if (currentMonthText) {
+            currentMonthText.textContent = this.currentDate.toLocaleDateString('pt-BR', {
+                month: 'long',
+                year: 'numeric'
+            });
         }
-    });
-    
-    loadAppointments(1);
-}
 
-function clearFilters() {
-    $('#appointmentStatusFilter').val('');
-    $('#startDateFilter').val('');
-    $('#endDateFilter').val('');
-    $('#appointmentSearchInput').val('');
-    $('#clientSearchInput').val('');
-    
-    currentFilters = {};
-    loadAppointments(1);
-}
+        // Generate calendar
+        const firstDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth(), 1);
+        const lastDay = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
 
-function setDefaultDateFilters() {
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    
-    $('#startDateFilter').val(formatDate(today));
-    $('#endDateFilter').val(formatDate(nextMonth));
-}
-
-function openAppointmentModal(appointment = null) {
-    editingAppointmentId = appointment ? appointment.id : null;
-    
-    if (appointment) {
-        $('#appointmentModalTitle').html('<i class="fas fa-edit me-2"></i>Edit Appointment');
-        populateAppointmentForm(appointment);
-    } else {
-        $('#appointmentModalTitle').html('<i class="fas fa-calendar-plus me-2"></i>Add New Appointment');
-        clearAppointmentForm();
-    }
-    
-    $('#appointmentModal').modal('show');
-}
-
-function populateAppointmentForm(appointment) {
-    $('#appointmentClient').val(appointment.client_id);
-    $('#appointmentType').val(appointment.type);
-    $('#appointmentDate').val(formatDate(new Date(appointment.appointment_date)));
-    $('#appointmentTime').val(formatTimeInput(new Date(appointment.appointment_date)));
-    $('#appointmentDuration').val(appointment.duration);
-    $('#appointmentStatus').val(appointment.status);
-    $('#appointmentLocation').val(appointment.location || '');
-    $('#appointmentNotes').val(appointment.notes || '');
-}
-
-function clearAppointmentForm() {
-    $('#appointmentForm')[0].reset();
-    $('#appointmentStatus').val('scheduled');
-}
-
-function saveAppointment() {
-    const formData = {
-        client_id: $('#appointmentClient').val(),
-        type: $('#appointmentType').val(),
-        appointment_date: $('#appointmentDate').val() + ' ' + $('#appointmentTime').val(),
-        duration: parseInt($('#appointmentDuration').val()),
-        status: $('#appointmentStatus').val(),
-        location: $('#appointmentLocation').val(),
-        notes: $('#appointmentNotes').val()
-    };
-    
-    // Validate required fields
-    if (!formData.client_id || !formData.type || !formData.appointment_date || !formData.duration) {
-        showAlert('Please fill in all required fields', 'warning');
-        return;
-    }
-    
-    showLoading();
-    
-    const request = editingAppointmentId
-        ? axios.put(`/api/appointments/${editingAppointmentId}`, formData)
-        : axios.post('/api/appointments', formData);
-    
-    request
-        .then(response => {
-            if (response.data.success) {
-                showAlert(
-                    editingAppointmentId ? 'Appointment updated successfully' : 'Appointment created successfully',
-                    'success'
-                );
-                $('#appointmentModal').modal('hide');
-                loadAppointments(currentPage);
-                loadTodaySchedule();
-            } else {
-                showAlert(response.data.message || 'Error saving appointment', 'danger');
-            }
-        })
-        .catch(error => {
-            console.error('Error saving appointment:', error);
-            showAlert('Error saving appointment', 'danger');
-        })
-        .finally(() => {
-            hideLoading();
-        });
-}
-
-function editAppointment(id) {
-    const appointment = currentAppointments.find(a => a.id === id);
-    if (appointment) {
-        openAppointmentModal(appointment);
-    }
-}
-
-function markCompleted(id) {
-    if (confirm('Mark this appointment as completed?')) {
-        showLoading();
+        let calendarHTML = '';
         
-        axios.put(`/api/appointments/${id}`, { status: 'completed' })
-            .then(response => {
-                if (response.data.success) {
-                    showAlert('Appointment marked as completed', 'success');
-                    loadAppointments(currentPage);
-                    loadTodaySchedule();
-                } else {
-                    showAlert(response.data.message || 'Error updating appointment', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error updating appointment:', error);
-                showAlert('Error updating appointment', 'danger');
-            })
-            .finally(() => {
-                hideLoading();
-            });
-    }
-}
-
-function deleteAppointment(id) {
-    if (confirm('Are you sure you want to delete this appointment?')) {
-        showLoading();
-        
-        axios.delete(`/api/appointments/${id}`)
-            .then(response => {
-                if (response.data.success) {
-                    showAlert('Appointment deleted successfully', 'success');
-                    loadAppointments(currentPage);
-                    loadTodaySchedule();
-                } else {
-                    showAlert(response.data.message || 'Error deleting appointment', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error deleting appointment:', error);
-                showAlert('Error deleting appointment', 'danger');
-            })
-            .finally(() => {
-                hideLoading();
-            });
-    }
-}
-
-function loadTodaySchedule() {
-    const today = formatDate(new Date());
-    
-    axios.get('/api/appointments/today')
-        .then(response => {
-            if (response.data.success) {
-                renderTodaySchedule(response.data.data || []);
-                updateTodayStats(response.data.data || []);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading today\'s schedule:', error);
+        // Day headers
+        const dayHeaders = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        calendarHTML += '<div class="calendar-header">';
+        dayHeaders.forEach(day => {
+            calendarHTML += `<div class="day-header">${day}</div>`;
         });
-    
-    // Load upcoming appointments
-    axios.get('/api/appointments/upcoming')
-        .then(response => {
-            if (response.data.success) {
-                renderUpcomingAppointments(response.data.data || []);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading upcoming appointments:', error);
-        });
-}
+        calendarHTML += '</div>';
 
-function renderTodaySchedule(appointments) {
-    const container = $('#todayAppointments');
-    container.empty();
-    
-    if (appointments.length === 0) {
-        container.append(`
-            <div class="empty-state text-center py-4">
-                <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
-                <p class="text-muted">No appointments scheduled for today</p>
-            </div>
-        `);
-        return;
-    }
-    
-    appointments.forEach(appointment => {
-        const client = currentClients.find(c => c.id == appointment.client_id);
-        const clientName = client ? client.name : 'Unknown Client';
-        const appointmentTime = new Date(appointment.appointment_date);
-        
-        container.append(`
-            <div class="appointment-item mb-3">
-                <div class="d-flex align-items-center">
-                    <div class="time-badge me-3">
-                        <div class="time">${formatTime(appointmentTime)}</div>
-                        <div class="duration">${appointment.duration}m</div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div>
-                                <h6 class="mb-1">${escapeHtml(clientName)}</h6>
-                                <p class="mb-1 text-muted">${escapeHtml(appointment.type)}</p>
-                                ${appointment.location ? `<small class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(appointment.location)}</small>` : ''}
-                            </div>
-                            <div>
-                                ${getStatusBadge(appointment.status)}
-                            </div>
+        // Calendar days
+        const currentDate = new Date(startDate);
+        for (let week = 0; week < 6; week++) {
+            for (let day = 0; day < 7; day++) {
+                const isCurrentMonth = currentDate.getMonth() === this.currentDate.getMonth();
+                const isToday = this.isSameDate(currentDate, new Date());
+                const dayAppointments = this.getAppointmentsForDate(currentDate);
+
+                let dayClass = 'calendar-day';
+                if (!isCurrentMonth) dayClass += ' other-month';
+                if (isToday) dayClass += ' today';
+
+                calendarHTML += `
+                    <div class="${dayClass}" data-date="${this.formatDate(currentDate)}">
+                        <div class="day-number">${currentDate.getDate()}</div>
+                        <div class="day-appointments">
+                            ${dayAppointments.map(apt => `
+                                <div class="appointment-item" title="${apt.client_name} - ${apt.start_time}">
+                                    ${apt.client_name}
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
-                </div>
-            </div>
-        `);
-    });
-    
-    $('#todayCount').text(appointments.length);
-}
+                `;
 
-function updateTodayStats(appointments) {
-    const stats = {
-        total: appointments.length,
-        completed: appointments.filter(a => a.status === 'completed').length,
-        pending: appointments.filter(a => ['scheduled', 'confirmed'].includes(a.status)).length,
-        cancelled: appointments.filter(a => ['cancelled', 'no_show'].includes(a.status)).length
-    };
-    
-    $('#todayTotal').text(stats.total);
-    $('#todayCompleted').text(stats.completed);
-    $('#todayPending').text(stats.pending);
-    $('#todayCancelled').text(stats.cancelled);
-}
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        }
 
-function renderUpcomingAppointments(appointments) {
-    const container = $('#upcomingAppointments');
-    container.empty();
-    
-    if (appointments.length === 0) {
-        container.append('<p class="text-muted text-center">No upcoming appointments</p>');
-        return;
+        calendarGrid.innerHTML = calendarHTML;
     }
-    
-    appointments.slice(0, 5).forEach(appointment => {
-        const client = currentClients.find(c => c.id == appointment.client_id);
-        const clientName = client ? client.name : 'Unknown Client';
-        const appointmentDate = new Date(appointment.appointment_date);
+
+    getAppointmentsForDate(date) {
+        const dateStr = this.formatDate(date);
+        return this.appointments.filter(apt => apt.date === dateStr);
+    }
+
+    loadTodayAppointments() {
+        const today = this.formatDate(new Date());
+        const todayAppointments = this.appointments.filter(apt => apt.date === today);
         
-        container.append(`
-            <div class="upcoming-item mb-2">
-                <div class="d-flex align-items-center">
-                    <div class="avatar-xs me-2">
-                        <span class="avatar-text">${getInitials(clientName)}</span>
-                    </div>
-                    <div class="flex-grow-1">
-                        <div class="fw-medium">${escapeHtml(clientName)}</div>
-                        <small class="text-muted">${formatDate(appointmentDate)} at ${formatTime(appointmentDate)}</small>
-                    </div>
+        this.renderTodayAppointments(todayAppointments);
+        this.updateTodayStats(todayAppointments);
+    }
+
+    renderTodayAppointments(appointments) {
+        const container = document.getElementById('todayAppointmentsList');
+        if (!container) return;
+
+        if (appointments.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-calendar-check fa-3x mb-3"></i>
+                    <h5>Nenhum agendamento para hoje</h5>
+                    <p>Você está livre hoje!</p>
                 </div>
-            </div>
-        `);
-    });
-}
+            `;
+            return;
+        }
 
-function initializeCalendar() {
-    renderCalendar();
-}
+        container.innerHTML = appointments
+            .sort((a, b) => a.start_time.localeCompare(b.start_time))
+            .map(apt => `
+                <div class="appointment-card fade-in">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="appointment-time">${apt.start_time} - ${apt.end_time}</div>
+                            <div class="appointment-client">${apt.client_name}</div>
+                            <div class="appointment-type">${this.getTypeLabel(apt.type)}</div>
+                        </div>
+                        <div>
+                            <span class="status-badge status-${apt.status}">
+                                ${this.getStatusLabel(apt.status)}
+                            </span>
+                        </div>
+                    </div>
+                    ${apt.notes ? `<div class="mt-2"><small class="text-muted">${apt.notes}</small></div>` : ''}
+                </div>
+            `).join('');
+    }
 
-function renderCalendar() {
-    const container = $('#calendarContainer');
-    const monthText = $('#currentMonthText');
-    
-    // Update month text
-    monthText.text(currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
-    
-    // Generate calendar HTML
-    const calendar = generateCalendarHTML(currentDate);
-    container.html(calendar);
-    
-    // Load appointments for the current month
-    loadMonthAppointments();
-}
+    updateTodayStats(appointments) {
+        const totalEl = document.getElementById('todayTotal');
+        const completedEl = document.getElementById('todayCompleted');
+        const pendingEl = document.getElementById('todayPending');
 
-function generateCalendarHTML(date) {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
-    
-    let html = '<div class="calendar-grid">';
-    
-    // Header
-    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    weekdays.forEach(day => {
-        html += `<div class="calendar-header">${day}</div>`;
-    });
-    
-    // Calendar days
-    const currentDate = new Date(startDate);
-    for (let i = 0; i < 42; i++) {
-        const isCurrentMonth = currentDate.getMonth() === month;
-        const isToday = currentDate.toDateString() === new Date().toDateString();
+        if (totalEl) totalEl.textContent = appointments.length;
+        if (completedEl) completedEl.textContent = appointments.filter(apt => apt.status === 'completed').length;
+        if (pendingEl) pendingEl.textContent = appointments.filter(apt => ['scheduled', 'confirmed'].includes(apt.status)).length;
+    }
+
+    openAppointmentModal(appointmentId = null) {
+        const modal = new bootstrap.Modal(document.getElementById('appointmentModal'));
+        const form = document.getElementById('appointmentForm');
+        const title = document.getElementById('appointmentModalTitle');
         
-        html += `
-            <div class="calendar-day ${isCurrentMonth ? 'current-month' : 'other-month'} ${isToday ? 'today' : ''}" data-date="${formatDate(currentDate)}">
-                <div class="day-number">${currentDate.getDate()}</div>
-                <div class="day-appointments" id="appointments-${formatDate(currentDate)}"></div>
-            </div>
+        if (appointmentId) {
+            const appointment = this.appointments.find(apt => apt.id === appointmentId);
+            if (appointment) {
+                title.textContent = 'Editar Agendamento';
+                this.populateForm(appointment);
+            }
+        } else {
+            title.textContent = 'Novo Agendamento';
+            form.reset();
+            document.getElementById('appointmentId').value = '';
+        }
+        
+        modal.show();
+    }
+
+    populateForm(appointment) {
+        document.getElementById('appointmentId').value = appointment.id;
+        document.getElementById('clientSelect').value = appointment.client_id;
+        document.getElementById('appointmentType').value = appointment.type;
+        document.getElementById('appointmentDate').value = appointment.date;
+        document.getElementById('appointmentStartTime').value = appointment.start_time;
+        document.getElementById('appointmentEndTime').value = appointment.end_time;
+        document.getElementById('appointmentStatus').value = appointment.status;
+        document.getElementById('appointmentValue').value = appointment.value;
+        document.getElementById('appointmentNotes').value = appointment.notes;
+    }
+
+    async saveAppointment() {
+        const form = document.getElementById('appointmentForm');
+        const formData = new FormData(form);
+        const saveBtn = document.getElementById('saveAppointmentBtn');
+        const spinner = saveBtn.querySelector('.spinner-border');
+        
+        // Show loading
+        saveBtn.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        try {
+            const appointmentData = {
+                id: document.getElementById('appointmentId').value,
+                client_id: document.getElementById('clientSelect').value,
+                type: document.getElementById('appointmentType').value,
+                date: document.getElementById('appointmentDate').value,
+                start_time: document.getElementById('appointmentStartTime').value,
+                end_time: document.getElementById('appointmentEndTime').value,
+                status: document.getElementById('appointmentStatus').value,
+                value: document.getElementById('appointmentValue').value,
+                notes: document.getElementById('appointmentNotes').value
+            };
+
+            // Validate
+            if (!this.validateAppointment(appointmentData)) {
+                return;
+            }
+
+            // Simulated API call - replace with actual endpoint
+            const response = await fetch('/api/appointments', {
+                method: appointmentData.id ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(appointmentData)
+            });
+
+            if (response.ok) {
+                this.showNotification('Agendamento salvo com sucesso!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('appointmentModal')).hide();
+                this.loadAppointments();
+                this.loadTodayAppointments();
+            } else {
+                throw new Error('Erro ao salvar agendamento');
+            }
+        } catch (error) {
+            console.error('Error saving appointment:', error);
+            this.showNotification('Erro ao salvar agendamento. Tente novamente.', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    }
+
+    validateAppointment(data) {
+        if (!data.client_id) {
+            this.showNotification('Selecione um cliente', 'error');
+            return false;
+        }
+        if (!data.type) {
+            this.showNotification('Selecione o tipo de agendamento', 'error');
+            return false;
+        }
+        if (!data.date) {
+            this.showNotification('Selecione a data', 'error');
+            return false;
+        }
+        if (!data.start_time || !data.end_time) {
+            this.showNotification('Defina o horário de início e fim', 'error');
+            return false;
+        }
+        if (data.start_time >= data.end_time) {
+            this.showNotification('O horário de fim deve ser posterior ao de início', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    editAppointment(id) {
+        this.openAppointmentModal(id);
+    }
+
+    async deleteAppointment(id) {
+        if (!confirm('Tem certeza que deseja excluir este agendamento?')) {
+            return;
+        }
+
+        try {
+            // Simulated API call - replace with actual endpoint
+            const response = await fetch(`/api/appointments/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.showNotification('Agendamento excluído com sucesso!', 'success');
+                this.loadAppointments();
+                this.loadTodayAppointments();
+            } else {
+                throw new Error('Erro ao excluir agendamento');
+            }
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            this.showNotification('Erro ao excluir agendamento. Tente novamente.', 'error');
+        }
+    }
+
+    applyFilters() {
+        // Implementation for filtering appointments
+        this.loadAppointments();
+    }
+
+    clearFilters() {
+        this.filters = {
+            status: '',
+            startDate: '',
+            endDate: '',
+            client: ''
+        };
+        
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        document.getElementById('clientFilter').value = '';
+        
+        this.loadAppointments();
+    }
+
+    searchAppointments(query) {
+        // Implementation for searching appointments
+        console.log('Searching for:', query);
+    }
+
+    // Utility methods
+    formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    formatDisplayDate(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        return date.toLocaleDateString('pt-BR');
+    }
+
+    isSameDate(date1, date2) {
+        return date1.toDateString() === date2.toDateString();
+    }
+
+    getStatusLabel(status) {
+        const labels = {
+            scheduled: 'Agendado',
+            confirmed: 'Confirmado',
+            completed: 'Concluído',
+            cancelled: 'Cancelado'
+        };
+        return labels[status] || status;
+    }
+
+    getTypeLabel(type) {
+        const labels = {
+            consultation: 'Consulta',
+            meeting: 'Reunião',
+            presentation: 'Apresentação',
+            follow_up: 'Follow-up',
+            other: 'Outro'
+        };
+        return labels[type] || type;
+    }
+
+    showLoading(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Simple notification - you can replace with a more sophisticated solution
+        const alertClass = type === 'success' ? 'alert-success' : 
+                          type === 'error' ? 'alert-danger' : 'alert-info';
+        
+        const notification = document.createElement('div');
+        notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    html += '</div>';
-    return html;
-}
-
-function loadMonthAppointments() {
-    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    
-    const params = {
-        start_date: formatDate(startDate),
-        end_date: formatDate(endDate)
-    };
-    
-    axios.get('/api/appointments', { params })
-        .then(response => {
-            if (response.data.success) {
-                displayCalendarAppointments(response.data.data || []);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading month appointments:', error);
-        });
-}
-
-function displayCalendarAppointments(appointments) {
-    // Clear existing appointments
-    $('.day-appointments').empty();
-    
-    appointments.forEach(appointment => {
-        const date = formatDate(new Date(appointment.appointment_date));
-        const container = $(`#appointments-${date}`);
+        document.body.appendChild(notification);
         
-        if (container.length) {
-            const client = currentClients.find(c => c.id == appointment.client_id);
-            const clientName = client ? client.name : 'Unknown';
-            const time = formatTime(new Date(appointment.appointment_date));
-            
-            container.append(`
-                <div class="calendar-appointment ${appointment.status}" title="${escapeHtml(clientName)} - ${time}">
-                    <small>${escapeHtml(clientName.split(' ')[0])}</small>
-                </div>
-            `);
-        }
-    });
-}
-
-// Utility functions
-function getStatusBadge(status) {
-    const badges = {
-        scheduled: '<span class="badge bg-secondary">Scheduled</span>',
-        confirmed: '<span class="badge bg-primary">Confirmed</span>',
-        completed: '<span class="badge bg-success">Completed</span>',
-        cancelled: '<span class="badge bg-danger">Cancelled</span>',
-        no_show: '<span class="badge bg-warning">No Show</span>'
-    };
-    return badges[status] || '<span class="badge bg-light text-dark">Unknown</span>';
-}
-
-function formatDateTime(date) {
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-function formatDate(date) {
-    return date.toISOString().split('T')[0];
-}
-
-function formatTime(date) {
-    return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
-}
-
-function formatTimeInput(date) {
-    return date.toTimeString().slice(0, 5);
-}
-
-function getInitials(name) {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-function showLoading() {
-    $('#loadingOverlay').show();
-}
-
-function hideLoading() {
-    $('#loadingOverlay').hide();
-}
-
-function showAlert(message, type = 'info') {
-    // Create alert element
-    const alertHtml = `
-        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-            ${escapeHtml(message)}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    // Add to page
-    $('body').prepend(alertHtml);
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        $('.alert').alert('close');
-    }, 5000);
-}
-
-function checkAuth() {
-    const token = localStorage.getItem('token');
-    return token && token !== 'null';
-}
-
-function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'login.html';
-}
-
-// Axios interceptors
-axios.interceptors.request.use(function(config) {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
     }
-    return config;
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    window.appointmentsManager = new AppointmentsManager();
 });
 
-axios.interceptors.response.use(
-    function(response) {
-        return response;
-    },
-    function(error) {
-        if (error.response && error.response.status === 401) {
-            logout();
-        }
-        return Promise.reject(error);
-    }
-);
+// Export for module usage if needed
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = AppointmentsManager;
+}

@@ -23,27 +23,34 @@ function initializePage() {
 
 // Check if user is authenticated
 function checkAuthentication() {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
+    console.log('Token from localStorage:', token);
+    
     if (!token) {
-        window.location.href = 'login.html';
-        return;
+        console.log('No token found, redirecting to login');
+        window.location.href = 'login.php';
+        return false;
     }
     
     // Set up axios defaults
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    console.log('Authorization header set:', axios.defaults.headers.common['Authorization']);
     
     // Handle token expiration
     axios.interceptors.response.use(
         response => response,
         error => {
             if (error.response && error.response.status === 401) {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('userInfo');
-                window.location.href = 'login.html';
+                console.log('Token expired or invalid, removing and redirecting');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'login.php';
             }
             return Promise.reject(error);
         }
     );
+    
+    return true;
 }
 
 // Load user information
@@ -99,34 +106,56 @@ function setupEventListeners() {
 function loadProfileData() {
     showLoading();
     
-    // Simulate API call - replace with actual API endpoint
-    setTimeout(() => {
-        const mockProfileData = {
-            id: 1,
-            firstName: 'John',
-            lastName: 'Doe',
-            email: 'john.doe@company.com',
-            phone: '+1 (555) 123-4567',
-            jobTitle: 'Sales Manager',
-            department: 'sales',
-            bio: 'Experienced sales professional with over 5 years in B2B sales and client relationship management.',
-            address: '123 Business St',
-            city: 'New York',
-            state: 'NY',
-            zipCode: '10001',
-            avatar: null,
-            stats: {
-                deals: 45,
-                revenue: 125000,
-                clients: 23
-            },
-            joinDate: '2022-01-15',
-            lastLogin: '2024-01-15T10:30:00Z'
-        };
-        
-        populateProfileData(mockProfileData);
-        hideLoading();
-    }, 1000);
+    // Make API call to get current user profile
+    axios.get('/api/auth/profile')
+        .then(response => {
+            console.log('API Response:', response.data);
+            if (response.data.success) {
+                const userData = response.data.data;
+                console.log('User Data:', userData);
+                
+                // Check if userData exists
+                if (!userData) {
+                    showAlert('Dados do usuário não encontrados.', 'error');
+                    return;
+                }
+                
+                // Transform API data to match expected format
+                const profileData = {
+                    id: userData.id || null,
+                    firstName: userData.name ? userData.name.split(' ')[0] : '',
+                    lastName: userData.name ? userData.name.split(' ').slice(1).join(' ') : '',
+                    email: userData.email || '',
+                    phone: userData.phone || '',
+                    jobTitle: userData.job_title || userData.role || '',
+                    department: userData.department || '',
+                    bio: userData.bio || '',
+                    address: userData.address || '',
+                    city: userData.city || '',
+                    state: userData.state || '',
+                    zipCode: userData.zip_code || '',
+                    avatar: userData.avatar || null,
+                    stats: {
+                        deals: userData.deals_count || 0,
+                        revenue: userData.total_revenue || 0,
+                        clients: userData.clients_count || 0
+                    },
+                    joinDate: userData.created_at || '',
+                    lastLogin: userData.last_login || ''
+                };
+                
+                populateProfileData(profileData);
+            } else {
+                showAlert('Erro ao carregar dados do perfil: ' + response.data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading profile data:', error);
+            showAlert('Erro ao carregar dados do perfil. Tente novamente.', 'error');
+        })
+        .finally(() => {
+            hideLoading();
+        });
 }
 
 // Populate profile data in the form
@@ -514,9 +543,9 @@ function loadActivityHistory() {
 
 // Logout function
 function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userInfo');
-    window.location.href = 'login.html';
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.php';
 }
 
 // Utility functions

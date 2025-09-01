@@ -8,7 +8,7 @@ $(document).ready(function() {
     $('#dateFrom, #dateTo').on('change', filterInvoices);
     $('#resetFilters').on('click', resetFilters);
     $('#createInvoiceForm').on('submit', handleCreateInvoice);
-    $('#logoutBtn').on('click', handleLogout);
+    $('#exportBtn').on('click', exportInvoices);
     
     // Calculate total when invoice items change
     $(document).on('input', 'input[name="item_quantity[]"], input[name="item_price[]"], #taxRate, #discount', calculateTotal);
@@ -113,84 +113,76 @@ function initializePage() {
     // Check authentication
     const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
     
     // Set up axios defaults
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     
-    // Load user info
-    loadUserInfo();
+    showLoading();
     
     // Load invoices
     loadInvoices();
     
     // Load clients for dropdown
     loadClients();
+    
+    // Generate next invoice number
+    generateInvoiceNumber();
 }
 
-function loadUserInfo() {
-    try {
-        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-        if (userInfo.name) {
-            $('#userName').text(userInfo.name);
-        }
-        
-        // Show users link for admin
-        if (userInfo.role === 'admin') {
-            $('#usersLink').show();
-        }
-    } catch (error) {
-        console.error('Error loading user info:', error);
-    }
-}
+// Removed loadUserInfo function as it's handled by header component
 
 function loadInvoices() {
-    showLoading();
-    
-    // Simulate API call
-    setTimeout(() => {
-        allInvoices = [...mockInvoices];
-        filteredInvoices = [...allInvoices];
-        
-        updateStatistics();
-        displayInvoices();
-        hideLoading();
-    }, 1000);
+    axios.get('/api/billing/invoices')
+        .then(response => {
+            console.log('API Response:', response.data); // Debug log
+            allInvoices = response.data.data || [];
+            filteredInvoices = [...allInvoices];
+            
+            updateStatistics();
+            displayInvoices();
+            hideLoading();
+            $('#billingContent').show();
+        })
+        .catch(error => {
+            console.error('Error loading invoices:', error);
+            showAlert('Error loading invoices. Please try again.', 'error');
+            hideLoading();
+        });
 }
 
 function loadClients() {
-    const clientSelect = $('#clientSelect');
-    clientSelect.empty().append('<option value="">Select a client</option>');
-    
-    mockClients.forEach(client => {
-        clientSelect.append(`<option value="${client.id}">${client.name}</option>`);
-    });
+    axios.get('/api/crm/clients')
+        .then(response => {
+            const clients = response.data.clients || [];
+            const clientSelect = $('#clientSelect');
+            clientSelect.empty().append('<option value="">Select a client</option>');
+            
+            clients.forEach(client => {
+                clientSelect.append(`<option value="${client.id}">${client.name}</option>`);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading clients:', error);
+            showAlert('Error loading clients. Please try again.', 'error');
+        });
 }
 
 function updateStatistics() {
-    const stats = {
-        totalRevenue: 0,
-        pendingAmount: 0,
-        overdueAmount: 0,
-        totalInvoices: allInvoices.length
-    };
+    const totalRevenue = allInvoices
+        .filter(invoice => invoice.status === 'paid')
+        .reduce((sum, invoice) => sum + parseFloat(invoice.amount || 0), 0);
     
-    allInvoices.forEach(invoice => {
-        if (invoice.status === 'paid') {
-            stats.totalRevenue += invoice.amount;
-        } else if (invoice.status === 'pending') {
-            stats.pendingAmount += invoice.amount;
-        } else if (invoice.status === 'overdue') {
-            stats.overdueAmount += invoice.amount;
-        }
-    });
+    const paidCount = allInvoices.filter(invoice => invoice.status === 'paid').length;
+    const pendingCount = allInvoices.filter(invoice => invoice.status === 'pending').length;
+    const overdueCount = allInvoices.filter(invoice => invoice.status === 'overdue').length;
     
-    $('#totalRevenue').text(`$${stats.totalRevenue.toLocaleString()}`);
-    $('#pendingAmount').text(`$${stats.pendingAmount.toLocaleString()}`);
-    $('#overdueAmount').text(`$${stats.overdueAmount.toLocaleString()}`);
-    $('#totalInvoices').text(stats.totalInvoices);
+    $('#totalRevenue').text(`R$ ${totalRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`);
+    $('#paidInvoices').text(paidCount);
+    $('#pendingInvoices').text(pendingCount);
+    $('#overdueInvoices').text(overdueCount);
 }
 
 function displayInvoices() {
@@ -203,43 +195,44 @@ function displayInvoices() {
     
     if (invoicesToShow.length === 0) {
         showEmptyState();
+        $('#paginationContainer').hide();
         return;
     }
     
     hideEmptyState();
     
     invoicesToShow.forEach(invoice => {
-        const statusClass = `status-${invoice.status}`;
-        const statusText = invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1);
+        const statusClass = getStatusClass(invoice.status);
+        const statusText = getStatusText(invoice.status);
         
         const row = `
             <tr>
                 <td>
-                    <div class="invoice-number">${invoice.invoice_number}</div>
+                    <div class="fw-bold">${invoice.invoice_number || 'N/A'}</div>
                 </td>
-                <td>${invoice.client_name}</td>
+                <td>${invoice.client_name || 'N/A'}</td>
                 <td>
-                    <div class="invoice-amount">$${invoice.amount.toLocaleString()}</div>
+                    <div class="fw-bold">R$ ${parseFloat(invoice.amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
                 </td>
-                <td>${formatDate(invoice.issue_date)}</td>
+                <td>${formatDate(invoice.created_at)}</td>
                 <td>${formatDate(invoice.due_date)}</td>
                 <td>
-                    <span class="badge bg-light text-dark invoice-status ${statusClass}">
+                    <span class="badge ${statusClass}">
                         ${statusText}
                     </span>
                 </td>
                 <td>
-                    <div class="invoice-actions">
-                        <button class="btn btn-sm btn-outline-primary" onclick="viewInvoice(${invoice.id})" title="View">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewInvoice(${invoice.id})" title="Visualizar">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="editInvoice(${invoice.id})" title="Edit">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editInvoice(${invoice.id})" title="Editar">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-sm btn-outline-success" onclick="downloadInvoice(${invoice.id})" title="Download">
                             <i class="fas fa-download"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteInvoice(${invoice.id})" title="Delete">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteInvoice(${invoice.id})" title="Excluir">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -264,13 +257,21 @@ function updatePagination() {
     $('#totalRecords').text(filteredInvoices.length);
     
     const pagination = $('#pagination');
+    const paginationContainer = $('#paginationContainer');
+    
     pagination.empty();
     
-    if (totalPages <= 1) return;
+    if (totalPages <= 1) {
+        paginationContainer.hide();
+        return;
+    }
+    
+    paginationContainer.show();
     
     // Previous button
+    const prevDisabled = currentPage === 1 ? 'disabled' : '';
     pagination.append(`
-        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+        <li class="page-item ${prevDisabled}">
             <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">
                 <i class="fas fa-chevron-left"></i>
             </a>
@@ -278,21 +279,36 @@ function updatePagination() {
     `);
     
     // Page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            pagination.append(`
-                <li class="page-item ${i === currentPage ? 'active' : ''}">
-                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
-                </li>
-            `);
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-            pagination.append('<li class="page-item disabled"><span class="page-link">...</span></li>');
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    if (startPage > 1) {
+        pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="changePage(1)">1</a></li>`);
+        if (startPage > 2) {
+            pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
         }
     }
     
+    for (let i = startPage; i <= endPage; i++) {
+        const activeClass = i === currentPage ? 'active' : '';
+        pagination.append(`
+            <li class="page-item ${activeClass}">
+                <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+            </li>
+        `);
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            pagination.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+        }
+        pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a></li>`);
+    }
+    
     // Next button
+    const nextDisabled = currentPage === totalPages ? 'disabled' : '';
     pagination.append(`
-        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+        <li class="page-item ${nextDisabled}">
             <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">
                 <i class="fas fa-chevron-right"></i>
             </a>
@@ -341,7 +357,7 @@ function resetFilters() {
     displayInvoices();
 }
 
-function handleCreateInvoice(e) {
+async function handleCreateInvoice(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
@@ -381,28 +397,25 @@ function handleCreateInvoice(e) {
     const taxAmount = (subtotal * invoiceData.tax_rate) / 100;
     const totalAmount = subtotal + taxAmount - invoiceData.discount;
     
-    // Create new invoice
-    const newInvoice = {
-        id: Date.now(),
-        invoice_number: `INV-2024-${String(allInvoices.length + 1).padStart(3, '0')}`,
-        client_name: mockClients.find(c => c.id == invoiceData.client_id)?.name || 'Unknown Client',
-        amount: totalAmount,
-        ...invoiceData
-    };
+    invoiceData.subtotal = subtotal;
+    invoiceData.tax_amount = taxAmount;
+    invoiceData.total = totalAmount;
     
-    // Add to invoices array
-    allInvoices.unshift(newInvoice);
-    filteredInvoices = [...allInvoices];
-    
-    // Update display
-    updateStatistics();
-    displayInvoices();
-    
-    // Reset form and close modal
-    $('#createInvoiceForm')[0].reset();
-    $('#createInvoiceModal').modal('hide');
-    
-    showAlert('Invoice created successfully!', 'success');
+    try {
+        const response = await axios.post('/api/billing/invoices', invoiceData);
+        
+        // Reset form and close modal
+        $('#createInvoiceForm')[0].reset();
+        $('#createInvoiceModal').modal('hide');
+        
+        // Reload invoices
+        await loadInvoices();
+        
+        showAlert('Invoice created successfully!', 'success');
+    } catch (error) {
+        console.error('Error creating invoice:', error);
+        showAlert('Error creating invoice. Please try again.', 'error');
+    }
 }
 
 function addInvoiceItem() {
@@ -451,22 +464,6 @@ function calculateTotal() {
     $('#totalAmount').text(total.toFixed(2));
 }
 
-function viewInvoice(id) {
-    const invoice = allInvoices.find(inv => inv.id === id);
-    if (invoice) {
-        showAlert(`Viewing invoice: ${invoice.invoice_number}`, 'info');
-        // Here you would typically open a detailed view modal or navigate to a detail page
-    }
-}
-
-function editInvoice(id) {
-    const invoice = allInvoices.find(inv => inv.id === id);
-    if (invoice) {
-        showAlert(`Editing invoice: ${invoice.invoice_number}`, 'info');
-        // Here you would populate the edit form with invoice data
-    }
-}
-
 function downloadInvoice(id) {
     const invoice = allInvoices.find(inv => inv.id === id);
     if (invoice) {
@@ -475,21 +472,54 @@ function downloadInvoice(id) {
     }
 }
 
-function deleteInvoice(id) {
-    if (confirm('Are you sure you want to delete this invoice?')) {
-        allInvoices = allInvoices.filter(inv => inv.id !== id);
-        filteredInvoices = filteredInvoices.filter(inv => inv.id !== id);
-        
-        updateStatistics();
-        displayInvoices();
-        
-        showAlert('Invoice deleted successfully!', 'success');
-    }
-}
-
 function exportInvoices() {
     showAlert('Exporting invoices...', 'info');
     // Here you would implement the export functionality
+}
+
+async function editInvoice(invoiceId) {
+    try {
+        const response = await axios.get(`/api/billing/invoices/${invoiceId}`);
+        const invoice = response.data;
+        
+        // Populate form with invoice data
+        $('#clientSelect').val(invoice.client_id);
+        $('#invoiceNumber').val(invoice.invoice_number);
+        $('#issueDate').val(invoice.issue_date);
+        $('#dueDate').val(invoice.due_date);
+        $('#taxRate').val(invoice.tax_rate || 0);
+        $('#discount').val(invoice.discount || 0);
+        $('#notes').val(invoice.notes || '');
+        
+        // Set form to edit mode
+        $('#newInvoiceModal').data('edit-id', invoiceId);
+        $('#newInvoiceModalLabel').text('Editar Fatura');
+        $('#newInvoiceModal').modal('show');
+        
+    } catch (error) {
+        console.error('Erro ao carregar fatura:', error);
+        alert('Erro ao carregar dados da fatura.');
+    }
+}
+
+async function deleteInvoice(invoiceId) {
+    if (!confirm('Tem certeza que deseja excluir esta fatura?')) {
+        return;
+    }
+    
+    try {
+        await axios.delete(`/api/billing/invoices/${invoiceId}`);
+        await loadInvoices();
+        alert('Fatura excluída com sucesso!');
+    } catch (error) {
+        console.error('Erro ao excluir fatura:', error);
+        alert('Erro ao excluir fatura. Tente novamente.');
+    }
+}
+
+function viewInvoice(invoiceId) {
+    // Redirect to invoice view page or open modal
+    window.open(`/invoice-view.php?id=${invoiceId}`, '_blank');
 }
 
 function showLoading() {
@@ -553,8 +583,35 @@ function handleLogout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('token');
         localStorage.removeItem('userInfo');
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
     }
+}
+
+// Utility function for debouncing
+function getStatusClass(status) {
+    const statusClasses = {
+        'paid': 'bg-success',
+        'pending': 'bg-warning',
+        'overdue': 'bg-danger',
+        'draft': 'bg-secondary'
+    };
+    return statusClasses[status] || 'bg-secondary';
+}
+
+function getStatusText(status) {
+    const statusTexts = {
+        'paid': 'Pago',
+        'pending': 'Pendente',
+        'overdue': 'Vencido',
+        'draft': 'Rascunho'
+    };
+    return statusTexts[status] || 'Desconhecido';
+}
+
+function generateInvoiceNumber() {
+    const nextNumber = allInvoices.length + 1;
+    const invoiceNumber = `INV-2024-${String(nextNumber).padStart(3, '0')}`;
+    $('#invoiceNumber').val(invoiceNumber);
 }
 
 // Utility function for debouncing

@@ -97,9 +97,10 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 1rem;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
     gap: 1px;
+    width: 100%;
 }
 
 .calendar-header .day-name {
@@ -114,9 +115,10 @@ body {
 }
 
 .calendar-week {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    display: grid !important;
+    grid-template-columns: repeat(7, 1fr) !important;
     border-bottom: 1px solid #e9ecef;
+    width: 100%;
 }
 
 .calendar-week:last-child {
@@ -130,6 +132,11 @@ body {
     cursor: pointer;
     transition: background-color 0.2s ease;
     position: relative;
+    grid-column: span 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .calendar-day:last-child {

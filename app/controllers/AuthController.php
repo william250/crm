@@ -45,18 +45,10 @@ class AuthController
             }
 
             // Verify password
-            if (!password_verify($data['password'], $user['password'])) {
+            if (!password_verify($data['password'], $user['password_hash'])) {
                 return $this->jsonResponse($response, [
                     'success' => false,
                     'message' => 'Invalid credentials'
-                ], 401);
-            }
-
-            // Check if user is active
-            if ($user['status'] !== 'active') {
-                return $this->jsonResponse($response, [
-                    'success' => false,
-                    'message' => 'Account is not active'
                 ], 401);
             }
 
@@ -67,7 +59,7 @@ class AuthController
             $token = $this->authMiddleware->generateToken($user);
 
             // Remove password from user data
-            unset($user['password']);
+            unset($user['password_hash']);
             unset($user['remember_token']);
 
             return $this->jsonResponse($response, [

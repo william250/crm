@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Set Token for Testing</title>
+</head>
+<body>
+    <h1>Set Authentication Token</h1>
+    <button onclick="setToken()">Set Admin Token</button>
+    <button onclick="clearToken()">Clear Token</button>
+    <button onclick="checkToken()">Check Current Token</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        // Token generated from our test (valid for 24 hours)
+        const validToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6ImFkbWluQHNpc3RlbWEuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzU2Njg2ODQzLCJleHAiOjE3NTY3NzMyNDN9.tNn5PAtOudwQBhVqrr4prO9s6T5Ch93jJw-n1zTYK7k';
+        
+        function setToken() {
+            localStorage.setItem('token', validToken);
+            localStorage.setItem('user', JSON.stringify({
+                id: 1,
+                name: 'Administrador do Sistema',
+                email: 'admin@sistema.com',
+                role: 'admin'
+            }));
+            document.getElementById('result').innerHTML = '<p style="color: green;">Token set successfully!</p>';
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            document.getElementById('result').innerHTML = '<p style="color: red;">Token cleared!</p>';
+        }
+        
+        function checkToken() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            document.getElementById('result').innerHTML = `
+                <p><strong>Token:</strong> ${token ? 'Present' : 'Not found'}</p>
+                <p><strong>User:</strong> ${user || 'Not found'}</p>
+            `;
+        }
+    </script>
+</body>
+</html>

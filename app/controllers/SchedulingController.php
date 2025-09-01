@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Models\Appointment;
 use App\Models\User;
+use DateTime;
+use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -11,9 +13,7 @@ class SchedulingController {
     private $appointmentModel;
     private $userModel;
     
-    public function __construct() {
-        require_once __DIR__ . '/../../config/database.php';
-        $db = \Database::getInstance()->getConnection();
+    public function __construct($db) {
         $this->appointmentModel = new Appointment($db);
         $this->userModel = new User($db);
     }
@@ -172,7 +172,7 @@ class SchedulingController {
             
             // Validate status if provided
             if (!empty($data['status'])) {
-                $validStatuses = ['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'];
+                $validStatuses = ['scheduled', 'confirmed', 'completed', 'cancelled'];
                 if (!in_array($data['status'], $validStatuses)) {
                     return $this->jsonResponse($response, ['error' => 'Invalid status'], 400);
                 }

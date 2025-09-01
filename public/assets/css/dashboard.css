@@ -7,6 +7,12 @@
    GENERAL STYLES
    ============================================================================ */
 
+* {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f8f9fc;
@@ -14,7 +20,6 @@ body {
 }
 
 .main-content {
-    margin-top: 80px;
     padding: 20px;
 }
 
@@ -92,7 +97,7 @@ body {
 
 /* Stats Cards */
 .border-left-primary {
-    border-left: 0.25rem solid #4e73df !important;
+    border-left: 0.25rem solid var(--primary-color) !important;
 }
 
 .border-left-success {
@@ -172,7 +177,7 @@ body {
 }
 
 .badge.bg-primary {
-    background-color: #4e73df !important;
+    background-color: var(--primary-color) !important;
 }
 
 .badge.bg-success {
@@ -214,18 +219,23 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary-dark) 100%);
     color: white;
 }
 
 .btn-outline-primary {
-    border: 2px solid #4e73df;
-    color: #4e73df;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
     background: transparent;
 }
 
 .btn-outline-primary:hover {
-    background: #4e73df;
+    background: var(--primary-color);
     color: white;
 }
 
@@ -463,7 +473,7 @@ body {
    ============================================================================ */
 
 .text-primary {
-    color: #4e73df !important;
+    color: var(--primary-color) !important;
 }
 
 .text-success {
@@ -483,7 +493,7 @@ body {
 }
 
 .bg-gradient-primary {
-    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
 }
 
 .bg-gradient-success {

@@ -23,7 +23,7 @@ const itemsPerPage = 10;
 function initializePage() {
     // Check authentication
     if (!isAuthenticated()) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
     
@@ -36,15 +36,15 @@ function initializePage() {
 
 // Check if user is authenticated
 function isAuthenticated() {
-    const token = localStorage.getItem('authToken');
-    const user = localStorage.getItem('userData');
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
     return token && user;
 }
 
 // Load user information
 function loadUserInfo() {
     try {
-        const userData = JSON.parse(localStorage.getItem('userData'));
+        const userData = JSON.parse(localStorage.getItem('user'));
         if (userData && userData.name) {
             $('#userName').text(userData.name);
             
@@ -63,7 +63,7 @@ function setupAxiosInterceptors() {
     // Request interceptor to add auth token
     axios.interceptors.request.use(
         config => {
-            const token = localStorage.getItem('authToken');
+            const token = localStorage.getItem('token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -77,9 +77,9 @@ function setupAxiosInterceptors() {
         response => response,
         error => {
             if (error.response && error.response.status === 401) {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('userData');
-                window.location.href = 'login.html';
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = 'login.php';
             }
             return Promise.reject(error);
         }
@@ -91,61 +91,27 @@ async function loadClients() {
     try {
         showLoading();
         
-        // Mock data for demonstration
-        const mockClients = [
-            {
-                id: 1,
-                first_name: 'John',
-                last_name: 'Doe',
-                email: 'john.doe@example.com',
-                phone: '+1 (555) 123-4567',
-                company: 'Acme Corp',
-                status: 'active',
-                address: '123 Main St, New York, NY 10001',
-                notes: 'Important client, handles multiple projects',
-                last_contact: '2024-01-15',
-                created_at: '2024-01-01'
-            },
-            {
-                id: 2,
-                first_name: 'Jane',
-                last_name: 'Smith',
-                email: 'jane.smith@techcorp.com',
-                phone: '+1 (555) 987-6543',
-                company: 'TechCorp Solutions',
-                status: 'active',
-                address: '456 Business Ave, San Francisco, CA 94105',
-                notes: 'Tech startup, growing rapidly',
-                last_contact: '2024-01-14',
-                created_at: '2024-01-05'
-            },
-            {
-                id: 3,
-                first_name: 'Mike',
-                last_name: 'Johnson',
-                email: 'mike.j@startup.io',
-                phone: '+1 (555) 456-7890',
-                company: 'Startup Inc',
-                status: 'prospect',
-                address: '789 Innovation Dr, Austin, TX 78701',
-                notes: 'Potential high-value client',
-                last_contact: '2024-01-10',
-                created_at: '2024-01-08'
-            }
-        ];
+        const response = await axios.get('/api/crm/clients');
         
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (response.data.success) {
+            allClients = response.data.data || [];
+            filteredClients = [...allClients];
+            displayClients();
+        } else {
+            showError(response.data.message || 'Failed to load clients');
+        }
         
-        allClients = mockClients;
-        filteredClients = [...allClients];
-        
-        displayClients();
         hideLoading();
         
     } catch (error) {
         console.error('Error loading clients:', error);
-        showError('Failed to load clients. Please try again.');
+        if (error.response && error.response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.php';
+        } else {
+            showError('Failed to load clients. Please try again.');
+        }
         hideLoading();
     }
 }
@@ -168,15 +134,19 @@ function displayClients() {
     
     // Generate table rows
     clientsToShow.forEach(client => {
+        // Handle both API format (name) and legacy format (first_name, last_name)
+        const clientName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim();
+        const initials = clientName.split(' ').map(n => n.charAt(0)).join('').substring(0, 2).toUpperCase();
+        
         const row = `
             <tr>
                 <td>
                     <div class="d-flex align-items-center">
                         <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
-                            ${client.first_name.charAt(0)}${client.last_name.charAt(0)}
+                            ${initials}
                         </div>
                         <div>
-                            <div class="fw-bold">${client.first_name} ${client.last_name}</div>
+                            <div class="fw-bold">${clientName}</div>
                         </div>
                     </div>
                 </td>
@@ -188,7 +158,7 @@ function displayClients() {
                         ${client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                     </span>
                 </td>
-                <td>${formatDate(client.last_contact)}</td>
+                <td>${formatDate(client.last_contact || client.created_at)}</td>
                 <td>
                     <div class="btn-group btn-group-sm">
                         <button class="btn btn-outline-primary" onclick="editClient(${client.id})" title="Edit">
@@ -292,11 +262,14 @@ function filterClients() {
     
     // Filter clients
     filteredClients = allClients.filter(client => {
+        // Handle both API format (name) and legacy format (first_name, last_name)
+        const clientName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim();
+        
         const matchesSearch = !searchTerm || 
-            client.first_name.toLowerCase().includes(searchTerm) ||
-            client.last_name.toLowerCase().includes(searchTerm) ||
+            clientName.toLowerCase().includes(searchTerm) ||
             client.email.toLowerCase().includes(searchTerm) ||
-            (client.company && client.company.toLowerCase().includes(searchTerm));
+            (client.company && client.company.toLowerCase().includes(searchTerm)) ||
+            (client.phone && client.phone.includes(searchTerm));
         
         const matchesStatus = !statusFilter || client.status === statusFilter;
         
@@ -344,30 +317,39 @@ async function handleAddClient(e) {
         const formData = new FormData(e.target);
         const clientData = Object.fromEntries(formData.entries());
         
-        // Mock API call
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Add to local data (in real app, this would be handled by API response)
-        const newClient = {
-            id: Date.now(),
-            ...clientData,
-            last_contact: new Date().toISOString().split('T')[0],
-            created_at: new Date().toISOString().split('T')[0]
+        // Combine first_name and last_name into name for API
+        const apiData = {
+            name: `${clientData.first_name} ${clientData.last_name}`,
+            email: clientData.email,
+            phone: clientData.phone,
+            company: clientData.company || '',
+            address: clientData.address || '',
+            notes: clientData.notes || '',
+            status: clientData.status || 'active'
         };
         
-        allClients.unshift(newClient);
-        filteredClients = [...allClients];
+        const response = await axios.post('/api/crm/clients', apiData);
         
-        // Close modal and refresh display
-        $('#addClientModal').modal('hide');
-        $('#addClientForm')[0].reset();
-        displayClients();
-        
-        showAlert('success', 'Client added successfully!');
+        if (response.data.success) {
+            // Close modal and refresh display
+            $('#addClientModal').modal('hide');
+            $('#addClientForm')[0].reset();
+            
+            // Reload clients to get updated data
+            await loadClients();
+            
+            showAlert('success', 'Client added successfully!');
+        } else {
+            showAlert('danger', response.data.message || 'Failed to add client');
+        }
         
     } catch (error) {
         console.error('Error adding client:', error);
-        showAlert('danger', 'Failed to add client. Please try again.');
+        if (error.response && error.response.data && error.response.data.message) {
+            showAlert('danger', error.response.data.message);
+        } else {
+            showAlert('danger', 'Failed to add client. Please try again.');
+        }
     }
 }
 
@@ -380,25 +362,38 @@ async function handleEditClient(e) {
         const clientData = Object.fromEntries(formData.entries());
         const clientId = parseInt(clientData.client_id);
         
-        // Mock API call
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Combine first_name and last_name into name for API
+        const apiData = {
+            name: `${clientData.first_name} ${clientData.last_name}`,
+            email: clientData.email,
+            phone: clientData.phone,
+            company: clientData.company || '',
+            address: clientData.address || '',
+            notes: clientData.notes || '',
+            status: clientData.status || 'active'
+        };
         
-        // Update local data
-        const clientIndex = allClients.findIndex(c => c.id === clientId);
-        if (clientIndex !== -1) {
-            allClients[clientIndex] = { ...allClients[clientIndex], ...clientData };
-            filteredClients = [...allClients];
+        const response = await axios.put(`/api/crm/clients/${clientId}`, apiData);
+        
+        if (response.data.success) {
+            // Close modal and refresh display
+            $('#editClientModal').modal('hide');
+            
+            // Reload clients to get updated data
+            await loadClients();
+            
+            showAlert('success', 'Client updated successfully!');
+        } else {
+            showAlert('danger', response.data.message || 'Failed to update client');
         }
-        
-        // Close modal and refresh display
-        $('#editClientModal').modal('hide');
-        displayClients();
-        
-        showAlert('success', 'Client updated successfully!');
         
     } catch (error) {
         console.error('Error updating client:', error);
-        showAlert('danger', 'Failed to update client. Please try again.');
+        if (error.response && error.response.data && error.response.data.message) {
+            showAlert('danger', error.response.data.message);
+        } else {
+            showAlert('danger', 'Failed to update client. Please try again.');
+        }
     }
 }
 
@@ -407,11 +402,21 @@ function editClient(clientId) {
     const client = allClients.find(c => c.id === clientId);
     if (!client) return;
     
+    // Handle both API format (name) and legacy format (first_name, last_name)
+    let firstName = client.first_name || '';
+    let lastName = client.last_name || '';
+    
+    if (client.name && !firstName && !lastName) {
+        const nameParts = client.name.split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+    }
+    
     // Populate form
     const form = $('#editClientForm');
     form.find('[name="client_id"]').val(client.id);
-    form.find('[name="first_name"]').val(client.first_name);
-    form.find('[name="last_name"]').val(client.last_name);
+    form.find('[name="first_name"]').val(firstName);
+    form.find('[name="last_name"]').val(lastName);
     form.find('[name="email"]').val(client.email);
     form.find('[name="phone"]').val(client.phone || '');
     form.find('[name="company"]').val(client.company || '');
@@ -434,17 +439,31 @@ function viewClient(clientId) {
 }
 
 // Delete client
-function deleteClient(clientId) {
+async function deleteClient(clientId) {
     const client = allClients.find(c => c.id === clientId);
     if (!client) return;
     
-    if (confirm(`Are you sure you want to delete ${client.first_name} ${client.last_name}?`)) {
-        // Remove from local data
-        allClients = allClients.filter(c => c.id !== clientId);
-        filteredClients = filteredClients.filter(c => c.id !== clientId);
-        
-        displayClients();
-        showAlert('success', 'Client deleted successfully!');
+    const clientName = client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim();
+    
+    if (confirm(`Are you sure you want to delete ${clientName}? This action cannot be undone.`)) {
+        try {
+            const response = await axios.delete(`/api/crm/clients/${clientId}`);
+            
+            if (response.data.success) {
+                // Reload clients to get updated data
+                await loadClients();
+                showAlert('success', 'Client deleted successfully!');
+            } else {
+                showAlert('danger', response.data.message || 'Failed to delete client');
+            }
+        } catch (error) {
+            console.error('Error deleting client:', error);
+            if (error.response && error.response.data && error.response.data.message) {
+                showAlert('danger', error.response.data.message);
+            } else {
+                showAlert('danger', 'Failed to delete client. Please try again.');
+            }
+        }
     }
 }
 
@@ -495,9 +514,9 @@ function showAlert(type, message) {
 // Handle logout
 function handleLogout() {
     if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
-        window.location.href = 'login.html';
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.php';
     }
 }
 

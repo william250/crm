@@ -1,86 +1,16 @@
+<?php
+$page_title = 'Dashboard - Sistema CRM';
+$current_page = 'dashboard';
+$include_chartjs = true;
+$page_scripts = ['assets/js/dashboard.js'];
+?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - CRM System</title>
-    
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Custom CSS -->
-    <link href="assets/css/dashboard.css" rel="stylesheet">
+    <?php include 'components/head.php'; ?>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-chart-line me-2"></i>
-                CRM System
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="dashboard.html">
-                            <i class="fas fa-tachometer-alt me-1"></i>
-                            Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="crm-leads.html">
-                            <i class="fas fa-users me-1"></i>
-                            CRM
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="scheduling.html">
-                            <i class="fas fa-calendar-alt me-1"></i>
-                            Scheduling
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="billing.html">
-                            <i class="fas fa-file-invoice-dollar me-1"></i>
-                            Billing
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="contracts.html">
-                            <i class="fas fa-file-contract me-1"></i>
-                            Contracts
-                        </a>
-                    </li>
-                </ul>
-                
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>
-                            <span id="userName">Loading...</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.html"><i class="fas fa-user me-2"></i>Profile</a></li>
-                            <li><a class="dropdown-item" href="users.html" id="usersLink" style="display: none;"><i class="fas fa-users-cog me-2"></i>Users</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <?php include 'components/header.php'; ?>
 
     <!-- Main Content -->
     <div class="container-fluid main-content">
@@ -89,13 +19,13 @@
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h1 class="h3 mb-0">Dashboard</h1>
-                        <p class="text-muted mb-0">Welcome back! Here's what's happening with your business today.</p>
+                        <h1 class="h3 mb-0"><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+                        <p class="text-muted mb-0">Bem-vindo de volta! Aqui está o que está acontecendo com seu negócio hoje.</p>
                     </div>
                     <div>
                         <button class="btn btn-outline-primary" id="refreshBtn">
                             <i class="fas fa-sync-alt me-1"></i>
-                            Refresh
+                            Atualizar
                         </button>
                     </div>
                 </div>
@@ -105,9 +35,9 @@
         <!-- Loading State -->
         <div id="loadingState" class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+                <span class="visually-hidden">Carregando...</span>
             </div>
-            <p class="mt-3 text-muted">Loading dashboard data...</p>
+            <p class="mt-3 text-muted">Carregando dados do dashboard...</p>
         </div>
 
         <!-- Dashboard Content -->
@@ -120,7 +50,7 @@
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                        Total Leads
+                                        Total de Leads
                                     </div>
                                     <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalLeads">0</div>
                                 </div>
@@ -138,7 +68,7 @@
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                        Converted Leads
+                                        Leads Convertidos
                                     </div>
                                     <div class="h5 mb-0 font-weight-bold text-gray-800" id="convertedLeads">0</div>
                                 </div>
@@ -156,7 +86,7 @@
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                        Today's Appointments
+                                        Agendamentos Hoje
                                     </div>
                                     <div class="h5 mb-0 font-weight-bold text-gray-800" id="todayAppointments">0</div>
                                 </div>
@@ -174,7 +104,7 @@
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                        Pending Tasks
+                                        Tarefas Pendentes
                                     </div>
                                     <div class="h5 mb-0 font-weight-bold text-gray-800" id="pendingTasks">0</div>
                                 </div>
@@ -193,7 +123,7 @@
                 <div class="col-xl-8 col-lg-7">
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                            <h6 class="m-0 font-weight-bold text-primary">Lead Pipeline</h6>
+                            <h6 class="m-0 font-weight-bold text-primary">Pipeline de Leads</h6>
                         </div>
                         <div class="card-body">
                             <div class="chart-area">
@@ -207,7 +137,7 @@
                 <div class="col-xl-4 col-lg-5">
                     <div class="card shadow mb-4">
                         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                            <h6 class="m-0 font-weight-bold text-primary">Lead Sources</h6>
+                            <h6 class="m-0 font-weight-bold text-primary">Fontes de Leads</h6>
                         </div>
                         <div class="card-body">
                             <div class="chart-pie pt-4 pb-2">
@@ -224,13 +154,13 @@
                 <div class="col-lg-6 mb-4">
                     <div class="card shadow mb-4">
                         <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Recent Leads</h6>
+                            <h6 class="m-0 font-weight-bold text-primary">Leads Recentes</h6>
                         </div>
                         <div class="card-body">
                             <div id="recentLeadsList">
                                 <div class="text-center py-3">
                                     <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
+                                        <span class="visually-hidden">Carregando...</span>
                                     </div>
                                 </div>
                             </div>
@@ -242,13 +172,13 @@
                 <div class="col-lg-6 mb-4">
                     <div class="card shadow mb-4">
                         <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Upcoming Appointments</h6>
+                            <h6 class="m-0 font-weight-bold text-primary">Próximos Agendamentos</h6>
                         </div>
                         <div class="card-body">
                             <div id="upcomingAppointmentsList">
                                 <div class="text-center py-3">
                                     <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
+                                        <span class="visually-hidden">Carregando...</span>
                                     </div>
                                 </div>
                             </div>
@@ -263,25 +193,16 @@
             <div class="text-danger mb-3">
                 <i class="fas fa-exclamation-triangle fa-3x"></i>
             </div>
-            <h4>Error Loading Dashboard</h4>
-            <p class="text-muted mb-3">There was an error loading the dashboard data. Please try again.</p>
+            <h4>Erro ao Carregar Dashboard</h4>
+            <p class="text-muted mb-3">Houve um erro ao carregar os dados do dashboard. Tente novamente.</p>
             <button class="btn btn-primary" onclick="loadDashboard()">
                 <i class="fas fa-retry me-1"></i>
-                Retry
+                Tentar Novamente
             </button>
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    
-    <!-- Axios -->
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <!-- Custom JS -->
-    <script src="assets/js/dashboard.js"></script>
+    <?php include 'components/footer.php'; ?>
+    <?php include 'components/scripts.php'; ?>
 </body>
 </html>

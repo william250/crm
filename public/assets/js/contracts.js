@@ -24,7 +24,7 @@ function initializePage() {
     checkAuthentication();
     
     // Set user name
-    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+    const userData = JSON.parse(localStorage.getItem('user') || '{}');
     if (userData.name) {
         $('#userName').text(userData.name);
     }
@@ -37,9 +37,9 @@ function initializePage() {
 
 // Check authentication
 function checkAuthentication() {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.php';
         return;
     }
     
@@ -56,7 +56,7 @@ function loadContracts() {
         contracts = [
             {
                 id: 1,
-                title: 'Website Development Contract',
+                title: 'Contrato de Desenvolvimento Web',
                 client_id: 1,
                 client_name: 'Tech Solutions Inc.',
                 type: 'development',
@@ -66,12 +66,12 @@ function loadContracts() {
                 status: 'active',
                 progress: 65,
                 renewal_type: 'manual',
-                description: 'Complete website development and maintenance',
+                description: 'Desenvolvimento completo de website e manutenção',
                 created_at: '2024-01-10'
             },
             {
                 id: 2,
-                title: 'IT Support Services',
+                title: 'Serviços de Suporte de TI',
                 client_id: 2,
                 client_name: 'Global Corp Ltd.',
                 type: 'service',
@@ -81,12 +81,12 @@ function loadContracts() {
                 status: 'active',
                 progress: 40,
                 renewal_type: 'automatic',
-                description: '24/7 IT support and maintenance services',
+                description: 'Suporte de TI 24/7 e serviços de manutenção',
                 created_at: '2024-01-25'
             },
             {
                 id: 3,
-                title: 'Software Maintenance Agreement',
+                title: 'Acordo de Manutenção de Software',
                 client_id: 3,
                 client_name: 'StartupXYZ',
                 type: 'maintenance',
@@ -96,12 +96,12 @@ function loadContracts() {
                 status: 'pending',
                 progress: 0,
                 renewal_type: 'manual',
-                description: 'Monthly software updates and bug fixes',
+                description: 'Atualizações mensais de software e correção de bugs',
                 created_at: '2024-02-28'
             },
             {
                 id: 4,
-                title: 'Business Consulting Contract',
+                title: 'Contrato de Consultoria Empresarial',
                 client_id: 4,
                 client_name: 'Enterprise Solutions',
                 type: 'consulting',
@@ -111,12 +111,12 @@ function loadContracts() {
                 status: 'expired',
                 progress: 100,
                 renewal_type: 'none',
-                description: 'Strategic business consulting and planning',
+                description: 'Consultoria estratégica empresarial e planejamento',
                 created_at: '2023-11-25'
             },
             {
                 id: 5,
-                title: 'Mobile App Development',
+                title: 'Desenvolvimento de App Mobile',
                 client_id: 5,
                 client_name: 'Innovation Hub',
                 type: 'development',
@@ -126,7 +126,7 @@ function loadContracts() {
                 status: 'draft',
                 progress: 0,
                 renewal_type: 'manual',
-                description: 'Cross-platform mobile application development',
+                description: 'Desenvolvimento de aplicativo mobile multiplataforma',
                 created_at: '2024-03-20'
             }
         ];
@@ -291,6 +291,9 @@ function setupEventListeners() {
     // Filter dropdowns
     $('#statusFilter, #clientFilter, #typeFilter').on('change', filterContracts);
     
+    // Apply filters button
+    $('#applyFilters').on('click', filterContracts);
+    
     // Reset filters
     $('#resetFilters').on('click', function() {
         $('#searchInput').val('');
@@ -301,6 +304,9 @@ function setupEventListeners() {
         currentPage = 1;
         displayContracts();
     });
+    
+    // Export button
+    $('#exportBtn').on('click', exportContracts);
     
     // Create contract form
     $('#createContractForm').on('submit', function(e) {
@@ -502,23 +508,23 @@ function getStatusClass(status) {
 
 function getStatusText(status) {
     const statusTexts = {
-        'active': 'Active',
-        'pending': 'Pending',
-        'expired': 'Expired',
-        'draft': 'Draft',
-        'terminated': 'Terminated'
+        'active': 'Ativo',
+        'pending': 'Pendente',
+        'expired': 'Expirado',
+        'draft': 'Rascunho',
+        'terminated': 'Encerrado'
     };
-    return statusTexts[status] || 'Unknown';
+    return statusTexts[status] || 'Desconhecido';
 }
 
 function getTypeText(type) {
     const typeTexts = {
-        'service': 'Service Agreement',
-        'maintenance': 'Maintenance',
-        'development': 'Development',
-        'consulting': 'Consulting'
+        'service': 'Acordo de Serviço',
+        'maintenance': 'Manutenção',
+        'development': 'Desenvolvimento',
+        'consulting': 'Consultoria'
     };
-    return typeTexts[type] || 'Other';
+    return typeTexts[type] || 'Outro';
 }
 
 function calculateDuration(startDate, endDate) {
@@ -561,22 +567,21 @@ function formatNumber(number) {
 
 function showLoading() {
     $('#loadingState').show();
-    $('#contractsTable').closest('.contracts-card').hide();
-    $('#emptyState').hide();
+    $('#contractsContent').hide();
 }
 
 function hideLoading() {
     $('#loadingState').hide();
-    $('#contractsTable').closest('.contracts-card').show();
+    $('#contractsContent').show();
 }
 
 function showEmptyState() {
-    $('#contractsTable').closest('.contracts-card').hide();
+    $('#contractsContent .card:not(#emptyState)').hide();
     $('#emptyState').show();
 }
 
 function hideEmptyState() {
-    $('#contractsTable').closest('.contracts-card').show();
+    $('#contractsContent .card:not(#emptyState)').show();
     $('#emptyState').hide();
 }
 
@@ -620,7 +625,7 @@ function debounce(func, wait) {
 }
 
 function logout() {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userData');
-    window.location.href = 'login.html';
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'login.php';
 }

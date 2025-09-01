@@ -18,7 +18,7 @@ class Lead
     {
         try {
             $sql = "SELECT l.*, u.name as assigned_user_name FROM leads l 
-                    LEFT JOIN users u ON l.assigned_to = u.id 
+                    LEFT JOIN users u ON l.user_id = u.id 
                     WHERE 1=1";
             $params = [];
             
@@ -28,7 +28,7 @@ class Lead
             }
             
             if (!empty($filters['assigned_to'])) {
-                $sql .= " AND l.assigned_to = ?";
+                $sql .= " AND l.user_id = ?";
                 $params[] = $filters['assigned_to'];
             }
             
@@ -48,8 +48,7 @@ class Lead
             $sql .= " ORDER BY l.created_at DESC";
             
             if (!empty($filters['limit'])) {
-                $sql .= " LIMIT ?";
-                $params[] = (int)$filters['limit'];
+                $sql .= " LIMIT " . (int)$filters['limit'];
             }
             
             $stmt = $this->db->prepare($sql);
@@ -67,7 +66,7 @@ class Lead
             $stmt = $this->db->prepare("
                 SELECT l.*, u.name as assigned_user_name 
                 FROM leads l 
-                LEFT JOIN users u ON l.assigned_to = u.id 
+                LEFT JOIN users u ON l.user_id = u.id 
                 WHERE l.id = ?
             ");
             $stmt->execute([$id]);

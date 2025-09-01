@@ -505,6 +505,27 @@ class UserController {
         }
     }
     
+    // Get salespeople (users with seller role)
+    public function getSalespeople($request, $response, $args) {
+        try {
+            $sql = "SELECT id, name, email FROM users WHERE role = 'seller' AND status = 'active' ORDER BY name";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute();
+            $salespeople = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            return $this->jsonResponse($response, [
+                'success' => true,
+                'data' => $salespeople
+            ]);
+            
+        } catch (Exception $e) {
+            return $this->jsonResponse($response, [
+                'success' => false,
+                'message' => 'Error loading salespeople: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
     private function jsonResponse($response, $data, $status = 200) {
         $response->getBody()->write(json_encode($data));
         return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
